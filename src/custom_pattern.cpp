@@ -25,26 +25,29 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
 	bool patternfound;
 	if(flag == CHESSBOARD_PATTERN)
 	{
+        // CHESSBOARD_PATTERN
 		patternfound = findChessboardCorners(image, patternSize, corners,
         				CALIB_CB_ADAPTIVE_THRESH + CALIB_CB_NORMALIZE_IMAGE + CALIB_CB_FAST_CHECK);
-
 	}
 	else
 	{
 		// CIRCLE_PATTERN
 		patternfound = findCirclesGrid(image, patternSize, corners);
 	}
-	// Mat img_patterns(img);
-	// drawChessboardCorners(img_patterns, patternsize, Mat(corners), patternfound);
+	Mat img_patterns(img);
+	drawChessboardCorners(img_patterns, patternSize, Mat(corners), patternfound);
+    imshow("Chessboard", img_patterns);
 
 	if(patternfound || true /*for testing*/)
 	{
-  		// cornerSubPix(image, corners, Size(11, 11), Size(-1, -1),
-        // 			 TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 30, 0.1));
+        Mat gray;
+        cvtColor(img, gray, COLOR_RGB2GRAY);
+  		cornerSubPix(gray, corners, Size(11, 11), Size(-1, -1),
+        			 TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 30, 0.1));
 
-  		// // Average pixel size across the whole width.
-  		// Point2d box_len = (corners[0] - corners[patternSize.width]) * (1.0 / patternSize.width);
-  		double pixelSize = 1; //norm(box_len)/size;
+  		// Average pixel size across the whole width.
+  		Point2d box_len = (corners[0] - corners[patternSize.width]) * (1.0 / patternSize.width);
+  		double pixelSize = norm(box_len)/size;
 
   		img(roi).copyTo(img_roi);
 
