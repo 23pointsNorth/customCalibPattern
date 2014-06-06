@@ -49,7 +49,7 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
   		img(roi).copyTo(img_roi);
 
   		detector = FeatureDetector::create("ORB");
-  		detector->set("nFeatures", 100);
+  		detector->set("nFeatures", 20);
     	descriptorExtractor = DescriptorExtractor::create("ORB");
 
     	detector->detect(img_roi, keypoints);
@@ -103,7 +103,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     if(f_descriptor.type() != CV_32F) { f_descriptor.convertTo(f_descriptor, CV_32F);}
     if(descriptor.type() != CV_32F) { descriptor.convertTo(descriptor, CV_32F);}
 
-    matcher.match(descriptor, f_descriptor, matches);
+    matcher.match(f_descriptor, descriptor, matches);
 
     // Calculation of max and min distances between keypoints
     double max_dist = 0;
@@ -126,14 +126,14 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
 
     for(int i = 0; i < f_descriptor.rows; i++)
     {
-        if(matches[i].distance <= max(2 * min_dist, 0.02))
+        if(matches[i].distance <= max(3 * min_dist, 0.02))
         {
             good_matches.push_back(matches[i]);
             cout << "Adding point " << i << " with Qidx: " << matches[i].queryIdx << " Tidx: "  <<  matches[i].trainIdx << endl;
             // Collocate needed data for return
             // "keypoints1[matches[i].queryIdx] has a corresponding point in keypoints2[matches[i].trainIdx]"
-            matched_f_points.push_back(f_keypoints[matches[i].trainIdx].pt);
-            matched_3d_keypoints.push_back(points3d[matches[i].queryIdx]);
+            matched_f_points.push_back(f_keypoints[matches[i].queryIdx].pt);
+            matched_3d_keypoints.push_back(points3d[matches[i].trainIdx]);
             cout << "Point added." << endl;
         }
     }
@@ -143,7 +143,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     Mat(matched_3d_keypoints).copyTo(pattern_points);
 
     Mat out;
-    drawMatches(img_roi, keypoints, img, f_keypoints, good_matches, out);
+    drawMatches(img, f_keypoints, img_roi, keypoints, good_matches, out);
     // drawKeypoints(img, f_keypoints, img, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
     imshow("Matched", out);
     return (!good_matches.empty()); // return true if there are enough good matches

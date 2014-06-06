@@ -51,7 +51,7 @@ int main()
 		Mat canvas(frame.clone());
 		rectangle(canvas, roi, CV_RGB(255, 0, 0));
 		imshow("Select Pattern", canvas);
-		key = waitKey(2);
+		key = waitKey(10);
 	}while(key != 't');
 	destroyWindow("Select Pattern");
 
@@ -70,7 +70,7 @@ int main()
 		cout << "##calling" << endl;
 
 		imshow("Frame", frame);
-		key = waitKey();
+		key = waitKey(10);
 	}while(key != 'q');
 
 	return 0;
