@@ -15,65 +15,65 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
 						     const int flag, const Size patternSize, const float size,
 						     OutputArray output)
 {
-	CV_Assert(!image.empty() && (roi.area() != 0) &&
-			  (patternSize.area() != 0) && (size != 0));
-	CV_Assert((flag == CHESSBOARD_PATTERN)||(flag == CIRCLE_PATTERN));
+    CV_Assert(!image.empty() && (roi.area() != 0) &&
+              (patternSize.area() != 0) && (size != 0));
+    CV_Assert((flag == CHESSBOARD_PATTERN)||(flag == CIRCLE_PATTERN));
 
-	Mat img = image.getMat();
+    Mat img = image.getMat();
 
-	vector<Point2f> corners;
-	bool patternfound;
-	if(flag == CHESSBOARD_PATTERN)
-	{
+    vector<Point2f> corners;
+    bool patternfound;
+    if(flag == CHESSBOARD_PATTERN)
+    {
         // CHESSBOARD_PATTERN
-		patternfound = findChessboardCorners(image, patternSize, corners,
-        				CALIB_CB_ADAPTIVE_THRESH + CALIB_CB_NORMALIZE_IMAGE + CALIB_CB_FAST_CHECK);
-	}
-	else
-	{
-		// CIRCLE_PATTERN
-		patternfound = findCirclesGrid(image, patternSize, corners);
-	}
-	Mat img_patterns(img);
-	drawChessboardCorners(img_patterns, patternSize, Mat(corners), patternfound);
+        patternfound = findChessboardCorners(image, patternSize, corners,
+            CALIB_CB_ADAPTIVE_THRESH + CALIB_CB_NORMALIZE_IMAGE + CALIB_CB_FAST_CHECK);
+    }
+    else
+    {
+        // CIRCLE_PATTERN
+        patternfound = findCirclesGrid(image, patternSize, corners);
+    }
+    Mat img_patterns(img);
+    drawChessboardCorners(img_patterns, patternSize, Mat(corners), patternfound);
     imshow("Chessboard", img_patterns);
 
-	if(patternfound || true /*for testing*/)
-	{
+    if(patternfound || true /*for testing*/)
+    {
         Mat gray;
         cvtColor(img, gray, COLOR_RGB2GRAY);
-  		cornerSubPix(gray, corners, Size(11, 11), Size(-1, -1),
-        			 TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 30, 0.1));
+        cornerSubPix(gray, corners, Size(11, 11), Size(-1, -1),
+                    TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 30, 0.1));
 
-  		// Average pixel size across the whole width.
-  		Point2d box_len = (corners[0] - corners[patternSize.width]) * (1.0 / patternSize.width);
-  		double pixelSize = norm(box_len)/size;
+        // Average pixel size across the whole width.
+        Point2d box_len = (corners[0] - corners[patternSize.width]) * (1.0 / patternSize.width);
+        double pixelSize = norm(box_len)/size;
 
-  		img(roi).copyTo(img_roi);
+        img(roi).copyTo(img_roi);
 
-  		detector = FeatureDetector::create("ORB");
-  		detector->set("nFeatures", 20);
-    	descriptorExtractor = DescriptorExtractor::create("ORB");
+        detector = FeatureDetector::create("ORB");
+        detector->set("nFeatures", 20);
+        descriptorExtractor = DescriptorExtractor::create("ORB");
 
-    	detector->detect(img_roi, keypoints);
-    	cout << "Keypoints count: " << keypoints.size() << endl;
-    	descriptorExtractor->compute(img_roi, keypoints, descriptor);
+        detector->detect(img_roi, keypoints);
+        cout << "Keypoints count: " << keypoints.size() << endl;
+        descriptorExtractor->compute(img_roi, keypoints, descriptor);
 
-    	Mat o;
-    	drawKeypoints(img_roi, keypoints, o, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+        Mat o;
+        drawKeypoints(img_roi, keypoints, o, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 
-    	// Scale found points by pixelSize
-    	scaleFoundPoints(pixelSize, keypoints, points3d);
+        // Scale found points by pixelSize
+        scaleFoundPoints(pixelSize, keypoints, points3d);
 
-    	initialized = (keypoints.size() != 0); // initialized if any keypoints are found
-    	if (output.needed()) o.copyTo(output);
-  	}
-  	else
-  	{
-  		//else no pattern found!
-  		initialized = false; // otherwise, give a warning, not error.
-  		CV_Error(Error::StsBadArg, "Could not find suggested pattern in the input image.");
-  	}
+        initialized = (keypoints.size() != 0); // initialized if any keypoints are found
+        if (output.needed()) o.copyTo(output);
+    }
+    else
+    {
+        //else no pattern found!
+        initialized = false; // otherwise, give a warning, not error.
+        CV_Error(Error::StsBadArg, "Could not find suggested pattern in the input image.");
+    }
 }
 
 CustomPattern::~CustomPattern() {}
@@ -83,22 +83,22 @@ void CustomPattern::scaleFoundPoints(const double pixelSize,
 {
     for (unsigned int i = 0; i < corners.size(); ++i)
     {
-    	points3d.push_back(Point3f(
-            corners[i].pt.x * pixelSize,
-    		corners[i].pt.y * pixelSize,
-    		0));
+        points3d.push_back(Point3f(
+                corners[i].pt.x * pixelSize,
+                corners[i].pt.y * pixelSize,
+                0));
     }
 }
 
 bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
-										          OutputArray pattern_points)
+                                                  OutputArray pattern_points)
 {
-	if (!initialized) {return false; }
+    if (!initialized) {return false; }
 
-	vector<DMatch> matches;
-	vector<KeyPoint> f_keypoints;
-	Mat f_descriptor;
-	Mat img = image.getMat();
+    vector<DMatch> matches;
+    vector<KeyPoint> f_keypoints;
+    Mat f_descriptor;
+    Mat img = image.getMat();
 
     detector->detect(img, f_keypoints);
     descriptorExtractor->compute(img, f_keypoints, f_descriptor);
@@ -154,7 +154,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
 
 void CustomPattern::getPatternPoints(OutputArray original_points)
 {
-	return Mat(keypoints).copyTo(original_points);
+    return Mat(keypoints).copyTo(original_points);
 }
 
 } // namespace cv
