@@ -23,41 +23,42 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
 
     vector<Point2f> corners;
     bool patternfound;
-    if(flag == CHESSBOARD_PATTERN)
-    {
-        // CHESSBOARD_PATTERN
-        patternfound = findChessboardCorners(image, patternSize, corners,
-            CALIB_CB_ADAPTIVE_THRESH + CALIB_CB_NORMALIZE_IMAGE + CALIB_CB_FAST_CHECK);
-    }
-    else
-    {
-        // CIRCLE_PATTERN
-        patternfound = findCirclesGrid(image, patternSize, corners);
-    }
-    Mat img_patterns(img);
-    drawChessboardCorners(img_patterns, patternSize, Mat(corners), patternfound);
-    imshow("Chessboard", img_patterns);
+    // if(flag == CHESSBOARD_PATTERN)
+    // {
+    //     // CHESSBOARD_PATTERN
+    //     patternfound = findChessboardCorners(image, patternSize, corners,
+    //         CALIB_CB_ADAPTIVE_THRESH + CALIB_CB_NORMALIZE_IMAGE + CALIB_CB_FAST_CHECK);
+    // }
+    // else
+    // {
+    //     // CIRCLE_PATTERN
+    //     patternfound = findCirclesGrid(image, patternSize, corners);
+    // }
+    // Mat img_patterns(img);
+    // drawChessboardCorners(img_patterns, patternSize, Mat(corners), patternfound);
+    // imshow("Chessboard", img_patterns);
 
     if(patternfound || true /*for testing*/)
     {
-        Mat gray;
-        cvtColor(img, gray, COLOR_RGB2GRAY);
-        cornerSubPix(gray, corners, Size(11, 11), Size(-1, -1),
-                    TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 30, 0.1));
+        // Mat gray;
+        // cvtColor(img, gray, COLOR_RGB2GRAY);
+        // cornerSubPix(gray, corners, Size(11, 11), Size(-1, -1),
+        //             TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 30, 0.1));
 
-        // Average pixel size across the whole width.
-        Point2d box_len = (corners[0] - corners[patternSize.width]) * (1.0 / patternSize.width);
-        double pixelSize = norm(box_len)/size;
+        // // Average pixel size across the whole width.
+        // Point2d box_len = (corners[0] - corners[patternSize.width]) * (1.0 / patternSize.width);
+        double pixelSize = 1;//norm(box_len)/size;
 
         img(roi).copyTo(img_roi);
 
         detector = FeatureDetector::create("ORB");
-        detector->set("nFeatures", 20);
+        detector->set("nFeatures", 200);
         descriptorExtractor = DescriptorExtractor::create("ORB");
 
         detector->detect(img_roi, keypoints);
         cout << "Keypoints count: " << keypoints.size() << endl;
         descriptorExtractor->compute(img_roi, keypoints, descriptor);
+        descriptorMatcher = DescriptorMatcher::create("BruteForce");
 
         Mat o;
         drawKeypoints(img_roi, keypoints, o, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
@@ -106,8 +107,10 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     if(f_descriptor.type() != CV_32F) { f_descriptor.convertTo(f_descriptor, CV_32F);}
     if(descriptor.type() != CV_32F) { descriptor.convertTo(descriptor, CV_32F);}
 
-    matcher.match(f_descriptor, descriptor, matches);
+    cout << "Matching..." << endl;
 
+    matcher.match(f_descriptor, descriptor, matches);
+    // descriptorMatcher->match(f_descriptor, descriptor, matches);
     // Calculation of max and min distances between keypoints
     double max_dist = 0;
     double min_dist = 1e10;
@@ -129,7 +132,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
 
     for(int i = 0; i < f_descriptor.rows; i++)
     {
-        if(matches[i].distance <= max(3 * min_dist, 0.02))
+        if(matches[i].distance <= max(1.5 * min_dist, 0.02))
         {
             good_matches.push_back(matches[i]);
             cout << "Adding point " << i << " with Qidx: " << matches[i].queryIdx << " Tidx: "  <<  matches[i].trainIdx << endl;
@@ -156,6 +159,15 @@ void CustomPattern::getPatternPoints(OutputArray original_points)
 {
     return Mat(keypoints).copyTo(original_points);
 }
+
+double CustomPattern::calibrate(InputArrayOfArrays objectPoints, InputArrayOfArrays imagePoints,
+                Size imageSize, InputOutputArray cameraMatrix, InputOutputArray distCoeffs,
+                OutputArrayOfArrays rvecs, OutputArrayOfArrays tvecs, int flags,
+                TermCriteria criteria)
+{
+    return calibrate(objectPoints, imagePoints, imageSize, cameraMatrix, distCoeffs, rvecs, tvecs, flags, criteria);
+}
+
 
 } // namespace cv
 

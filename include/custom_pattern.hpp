@@ -45,7 +45,10 @@ public:
 		Returns a vector<Point> of the original points.
 	*/
 
-	double calibrate(/* the same input params as calibCam*/);
+	double calibrate(InputArrayOfArrays objectPoints, InputArrayOfArrays imagePoints,
+				Size imageSize, InputOutputArray cameraMatrix, InputOutputArray distCoeffs,
+				OutputArrayOfArrays rvecs, OutputArrayOfArrays tvecs, int flags = 0,
+				TermCriteria criteria = TermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 30, DBL_EPSILON));
 	/*
 		Calls the calirateCamera function with the same inputs.
 	*/
@@ -78,6 +81,7 @@ private:
 
 	Ptr<FeatureDetector> detector;
 	Ptr<DescriptorExtractor> descriptorExtractor;
+	Ptr<DescriptorMatcher> descriptorMatcher;
 	FlannBasedMatcher matcher;
 
 	std::vector<KeyPoint> keypoints;
