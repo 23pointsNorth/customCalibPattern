@@ -128,7 +128,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
 
     vector<DMatch> good_matches;
     vector<Point3f> matched_3d_keypoints;
-    vector<Point2f> matched_f_points;
+    vector<Point2f> matched_f_points, obj_points;
 
     for(int i = 0; i < f_descriptor.rows; i++)
     {
@@ -141,12 +141,39 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
             matched_f_points.push_back(f_keypoints[matches[i].queryIdx].pt);
             matched_3d_keypoints.push_back(points3d[matches[i].trainIdx]);
             // cout << "Point added." << endl;
+            obj_points.push_back(keypoints[matches[i].trainIdx].pt);
         }
     }
-    cout << "Matched size: " << good_matches.size() << endl;
+
+    // cout << "Matched size: " << good_matches.size() << endl;
 
     Mat(matched_f_points).copyTo(matched_features);
     Mat(matched_3d_keypoints).copyTo(pattern_points);
+    if (good_matches.size() < 4) return false;
+
+    double max_error = 2;
+    Mat H = findHomography(obj_points, matched_f_points, RANSAC, max_error);
+    if (H.empty())
+    {
+        cout << "findHomography returned empty Mat." << endl;
+        return false;
+    }
+    //-- Get the corners from the image
+    vector<Point2f> obj_corners(4), scene_corners(4);
+    obj_corners[0] = Point2f(0, 0); obj_corners[1] = Point2f(img_roi.cols, 0);
+    obj_corners[2] = Point2f(img_roi.cols, img_roi.rows); obj_corners[3] = Point2f(0, img_roi.rows);
+
+    cout << "H: " << H.size() << endl;
+    perspectiveTransform(obj_corners, scene_corners, H);
+
+    Mat img_matches(img.clone());
+    //-- Draw lines between the corners (the mapped object in the scene - image_2 )
+    line(img_matches, scene_corners[0], scene_corners[1], Scalar(0, 255, 0), 4);
+    line(img_matches, scene_corners[1], scene_corners[2], Scalar(0, 255, 0), 4);
+    line(img_matches, scene_corners[2], scene_corners[3], Scalar(0, 255, 0), 4);
+    line(img_matches, scene_corners[3], scene_corners[0], Scalar(0, 255, 0), 4);
+    imshow("lines", img_matches);
+    waitKey(10);
 
     Mat out;
     drawMatches(img, f_keypoints, img_roi, keypoints, good_matches, out);
