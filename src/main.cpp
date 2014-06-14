@@ -1,5 +1,5 @@
 #include "custom_pattern.hpp"
-
+#include <opencv2/calib3d.hpp>
 #include <iostream>
 
 using namespace cv;
@@ -70,21 +70,31 @@ int main()
 	{
 		video >> frame;
 		vector<Point3f> org;
-		vector<Point2f> matched;
-		cout << "Calling" << endl;
-		if (pattern->findPattern(frame, matched, org) && matched.size() > 3)
-		{
-			obj_points.push_back(org);
-			matched_points.push_back(matched);
-			cout << "Images collected: " << obj_points.size() << endl;
-		}
-		cout << "Called." << endl;
 
 		imshow("Frame", frame);
 		key = waitKey(10);
+
+		vector<Point2f> matched;
+		// cout << "Calling" << endl;
+		if (key == ' ' && pattern->findPattern(frame, matched, org) && matched.size() > 3)
+		{
+			obj_points.push_back(org);
+			matched_points.push_back(matched);
+			cout << "Matched size: " << matched.size() << " Images collected: " << obj_points.size() << endl;
+		}
+		// cout << "Called." << endl;
 	}while(key != 'q');
 
+	Mat K, distCoeff;
+	vector<Mat> rvec, tvec;
+	cout << "rms: " << pattern->calibrate(obj_points, matched_points, frame.size(), K, distCoeff, rvec, tvec) << endl;
 
+	Mat undist;
+	undistort(frame, undist, K, distCoeff);
+	imshow("Undistorted", undist);
+	imwrite("undistorted.png", undist);
+	imwrite("frame.png", frame);
+	waitKey();
 
 	return 0;
 }

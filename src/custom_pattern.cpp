@@ -107,7 +107,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     if(f_descriptor.type() != CV_32F) { f_descriptor.convertTo(f_descriptor, CV_32F);}
     if(descriptor.type() != CV_32F) { descriptor.convertTo(descriptor, CV_32F);}
 
-    cout << "Matching..." << endl;
+    // cout << "Matching..." << endl;
 
     matcher.match(f_descriptor, descriptor, matches);
     // descriptorMatcher->match(f_descriptor, descriptor, matches);
@@ -121,10 +121,10 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
         if(dist > max_dist) max_dist = dist;
     }
 
-    cout << "Max dist: " << max_dist << endl;
-    cout << "Min dist: " << min_dist << endl;
-    cout << "Keypnts1: " << keypoints.size() << endl;
-    cout << "Keypnts2: " << f_keypoints.size() << endl;
+    // cout << "Max dist: " << max_dist << endl;
+    // cout << "Min dist: " << min_dist << endl;
+    // cout << "Keypnts1: " << keypoints.size() << endl;
+    // cout << "Keypnts2: " << f_keypoints.size() << endl;
 
     vector<DMatch> good_matches;
     vector<Point3f> matched_3d_keypoints;
@@ -132,15 +132,15 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
 
     for(int i = 0; i < f_descriptor.rows; i++)
     {
-        if(matches[i].distance <= max(1.5 * min_dist, 0.02))
+        if(matches[i].distance <= max(1.8 * min_dist, 0.02))
         {
             good_matches.push_back(matches[i]);
-            cout << "Adding point " << i << " with Qidx: " << matches[i].queryIdx << " Tidx: "  <<  matches[i].trainIdx << endl;
+            // cout << "Adding point " << i << " with Qidx: " << matches[i].queryIdx << " Tidx: "  <<  matches[i].trainIdx << endl;
             // Collocate needed data for return
             // "keypoints1[matches[i].queryIdx] has a corresponding point in keypoints2[matches[i].trainIdx]"
             matched_f_points.push_back(f_keypoints[matches[i].queryIdx].pt);
             matched_3d_keypoints.push_back(points3d[matches[i].trainIdx]);
-            cout << "Point added." << endl;
+            // cout << "Point added." << endl;
         }
     }
     cout << "Matched size: " << good_matches.size() << endl;
@@ -165,7 +165,7 @@ double CustomPattern::calibrate(InputArrayOfArrays objectPoints, InputArrayOfArr
                 OutputArrayOfArrays rvecs, OutputArrayOfArrays tvecs, int flags,
                 TermCriteria criteria)
 {
-    return calibrate(objectPoints, imagePoints, imageSize, cameraMatrix, distCoeffs, rvecs, tvecs, flags, criteria);
+    return calibrateCamera(objectPoints, imagePoints, imageSize, cameraMatrix, distCoeffs, rvecs, tvecs, flags, criteria);
 }
 
 
