@@ -58,7 +58,8 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
         detector->detect(img_roi, keypoints);
         cout << "Keypoints count: " << keypoints.size() << endl;
         descriptorExtractor->compute(img_roi, keypoints, descriptor);
-        descriptorMatcher = DescriptorMatcher::create("BruteForce");
+        descriptorMatcher = DescriptorMatcher::create("BruteForce-Hamming(2)");
+        descriptorMatcher->set("crossCheck", true);
 
         Mat o;
         drawKeypoints(img_roi, keypoints, o, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
@@ -155,6 +156,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     Mat H = findHomography(obj_points, matched_f_points, RANSAC, max_error);
     if (H.empty())
     {
+        cout << "H: " << H.size() << endl;
         cout << "findHomography returned empty Mat." << endl;
         return false;
     }
@@ -163,7 +165,6 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     obj_corners[0] = Point2f(0, 0); obj_corners[1] = Point2f(img_roi.cols, 0);
     obj_corners[2] = Point2f(img_roi.cols, img_roi.rows); obj_corners[3] = Point2f(0, img_roi.rows);
 
-    cout << "H: " << H.size() << endl;
     perspectiveTransform(obj_corners, scene_corners, H);
 
     Mat img_matches(img.clone());
