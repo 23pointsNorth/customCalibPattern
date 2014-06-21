@@ -9,6 +9,8 @@
 
 using namespace std;
 
+#define FLANN_ON    0
+
 namespace cv{
 
 CustomPattern::CustomPattern(InputArray image, const Rect roi,
@@ -58,8 +60,12 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
         detector->detect(img_roi, keypoints);
         cout << "Keypoints count: " << keypoints.size() << endl;
         descriptorExtractor->compute(img_roi, keypoints, descriptor);
+
+        #if (not FLANN_ON)
         descriptorMatcher = DescriptorMatcher::create("BruteForce-Hamming(2)");
         descriptorMatcher->set("crossCheck", true);
+        cout << "BruteForce-Hamming(2) matcher." << endl;
+        #endif
 
         Mat o;
         drawKeypoints(img_roi, keypoints, o, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
@@ -105,13 +111,16 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     detector->detect(img, f_keypoints);
     descriptorExtractor->compute(img, f_keypoints, f_descriptor);
 
-    if(f_descriptor.type() != CV_32F) { f_descriptor.convertTo(f_descriptor, CV_32F);}
-    if(descriptor.type() != CV_32F) { descriptor.convertTo(descriptor, CV_32F);}
-
     // cout << "Matching..." << endl;
 
+    #if FLANN_ON
+    if(f_descriptor.type() != CV_32F) { f_descriptor.convertTo(f_descriptor, CV_32F);}
+    if(descriptor.type() != CV_32F) { descriptor.convertTo(descriptor, CV_32F);}
     matcher.match(f_descriptor, descriptor, matches);
-    // descriptorMatcher->match(f_descriptor, descriptor, matches);
+    #else
+    descriptorMatcher->match(f_descriptor, descriptor, matches);
+    #endif
+
     // Calculation of max and min distances between keypoints
     double max_dist = 0;
     double min_dist = 1e10;
