@@ -53,8 +53,8 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
 
         img(roi).copyTo(img_roi);
 
-        detector = FeatureDetector::create("ORB");
-        detector->set("nFeatures", 200);
+        detector = FeatureDetector::create("FAST");
+        // detector->set("nFeatures", 2000);
         descriptorExtractor = DescriptorExtractor::create("ORB");
 
         detector->detect(img_roi, keypoints);
@@ -63,7 +63,7 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
 
         #if (not FLANN_ON)
         descriptorMatcher = DescriptorMatcher::create("BruteForce-Hamming(2)");
-        descriptorMatcher->set("crossCheck", true);
+        // descriptorMatcher->set("crossCheck", true); // not valid with k!=1
         cout << "BruteForce-Hamming(2) matcher." << endl;
         #endif
 
@@ -103,7 +103,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
 {
     if (!initialized) {return false; }
 
-    vector<DMatch> matches;
+    vector<vector<DMatch> > matches;
     vector<KeyPoint> f_keypoints;
     Mat f_descriptor;
     Mat img = image.getMat();
@@ -116,50 +116,63 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     #if FLANN_ON
     if(f_descriptor.type() != CV_32F) { f_descriptor.convertTo(f_descriptor, CV_32F);}
     if(descriptor.type() != CV_32F) { descriptor.convertTo(descriptor, CV_32F);}
-    matcher.match(f_descriptor, descriptor, matches);
+    matcher.knnMatch(f_descriptor, descriptor, matches, 2); // k = 2;
+
     #else
-    descriptorMatcher->match(f_descriptor, descriptor, matches);
+    descriptorMatcher->knnMatch(f_descriptor, descriptor, matches, 2); // k = 2;
     #endif
+
+    // cout << "Choosing best matches!" << endl;
+    vector<DMatch> good_matches, best_matches;
+    vector<Point3f> matched_3d_keypoints;
+    vector<Point2f> matched_f_points, obj_points;
+
+    for(int i = 0; i < f_descriptor.rows; ++i)
+    {
+        if(matches[i][0].distance < 0.65 * matches[i][1].distance)
+        {
+            const DMatch& dm = matches[i][0];
+            good_matches.push_back(dm);
+            // cout << "Adding point " << i << " with Qidx: " << dm.queryIdx << " Tidx: "  <<  dm.trainIdx << endl;
+            // Collocate needed data for return
+            // "keypoints1[matches[i].queryIdx] has a corresponding point in keypoints2[matches[i].trainIdx]"
+            matched_f_points.push_back(f_keypoints[dm.queryIdx].pt);
+            matched_3d_keypoints.push_back(points3d[dm.trainIdx]);
+            obj_points.push_back(keypoints[dm.trainIdx].pt);
+            // cout << "Point added." << endl;
+        }
+    }
+    cout << "After point ratio size: " << good_matches.size() << endl;
 
     // Calculation of max and min distances between keypoints
     double max_dist = 0;
     double min_dist = 1e10;
-    for(int i = 0; i < f_descriptor.rows; i++)
+    for(unsigned int i = 0; i < good_matches.size(); ++i)
     {
-        double dist = matches[i].distance;
+        double dist = good_matches[i].distance;
         if(dist < min_dist) min_dist = dist;
         if(dist > max_dist) max_dist = dist;
     }
 
-    // cout << "Max dist: " << max_dist << endl;
-    // cout << "Min dist: " << min_dist << endl;
-    // cout << "Keypnts1: " << keypoints.size() << endl;
-    // cout << "Keypnts2: " << f_keypoints.size() << endl;
-
-    vector<DMatch> good_matches;
-    vector<Point3f> matched_3d_keypoints;
-    vector<Point2f> matched_f_points, obj_points;
-
-    for(int i = 0; i < f_descriptor.rows; i++)
+    for(unsigned int i = 0; i < good_matches.size(); ++i)
     {
-        if(matches[i].distance <= max(1.8 * min_dist, 0.02))
+        if(good_matches[i].distance <= max(2 * min_dist, 20.0))
         {
-            good_matches.push_back(matches[i]);
-            // cout << "Adding point " << i << " with Qidx: " << matches[i].queryIdx << " Tidx: "  <<  matches[i].trainIdx << endl;
-            // Collocate needed data for return
-            // "keypoints1[matches[i].queryIdx] has a corresponding point in keypoints2[matches[i].trainIdx]"
-            matched_f_points.push_back(f_keypoints[matches[i].queryIdx].pt);
-            matched_3d_keypoints.push_back(points3d[matches[i].trainIdx]);
-            // cout << "Point added." << endl;
-            obj_points.push_back(keypoints[matches[i].trainIdx].pt);
+            best_matches.push_back(good_matches[i]);
         }
     }
 
-    // cout << "Matched size: " << good_matches.size() << endl;
+
+    cout << "After dist size: " << best_matches.size() << endl;
+
+    Mat out;
+    drawMatches(img, f_keypoints, img_roi, keypoints, best_matches, out);
+    // drawKeypoints(img, f_keypoints, img, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+    imshow("Matched", out);
 
     Mat(matched_f_points).copyTo(matched_features);
     Mat(matched_3d_keypoints).copyTo(pattern_points);
-    if (good_matches.size() < 4) return false;
+    if (best_matches.size() < 3) return false;
 
     double max_error = 2;
     Mat H = findHomography(obj_points, matched_f_points, RANSAC, max_error);
@@ -185,11 +198,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     imshow("lines", img_matches);
     waitKey(10);
 
-    Mat out;
-    drawMatches(img, f_keypoints, img_roi, keypoints, good_matches, out);
-    // drawKeypoints(img, f_keypoints, img, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-    imshow("Matched", out);
-    return (!good_matches.empty()); // return true if there are enough good matches
+    return (!best_matches.empty()); // return true if there are enough good matches
 }
 
 void CustomPattern::getPatternPoints(OutputArray original_points)
