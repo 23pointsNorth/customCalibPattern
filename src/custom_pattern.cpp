@@ -11,6 +11,10 @@ using namespace std;
 
 #define FLANN_ON    0
 
+#define MIN_CONTOUR_AREA_PX     100
+#define MIN_CONTOUR_AREA_RATIO  0.2
+#define MAX_CONTOUR_AREA_RATIO  5
+
 namespace cv{
 
 CustomPattern::CustomPattern(InputArray image, const Rect roi,
@@ -98,6 +102,13 @@ void CustomPattern::scaleFoundPoints(const double pixelSize,
     }
 }
 
+template<typename Tstve>
+void deleteStdVecElem(vector<Tstve>& v, int idx)
+{
+    v[idx] = v.back();
+    v.pop_back();
+}
+
 bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
                                                   OutputArray pattern_points)
 {
@@ -123,7 +134,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     #endif
 
     // cout << "Choosing best matches!" << endl;
-    vector<DMatch> good_matches, best_matches;
+    vector<DMatch> good_matches;
     vector<Point3f> matched_3d_keypoints;
     vector<Point2f> matched_f_points, obj_points;
 
@@ -144,8 +155,6 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     }
     cout << "After point ratio size: " << good_matches.size() << endl;
 
-    Mat(matched_f_points).copyTo(matched_features); // vectors need to be corrected with data below
-    Mat(matched_3d_keypoints).copyTo(pattern_points);
     if (good_matches.size() < 3) return false;
 
     double max_error = 1;
@@ -159,18 +168,18 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
 
     for(unsigned int i = 0; i < good_matches.size(); ++i)
     {
-        if(mask.data[i])
+        if(!mask.data[i])
         {
-            best_matches.push_back(good_matches[i]);
+            deleteStdVecElem(good_matches, i);
+            deleteStdVecElem(matched_f_points, i);
+            deleteStdVecElem(matched_3d_keypoints, i);
         }
     }
-    cout << "After findHomography: " << best_matches.size() << endl;
+    cout << "After findHomography: " << good_matches.size() << endl;
 
     Mat out;
-    drawMatches(img, f_keypoints, img_roi, keypoints, best_matches, out);
-    // drawKeypoints(img, f_keypoints, img, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+    drawMatches(img, f_keypoints, img_roi, keypoints, good_matches, out);
     imshow("Matched", out);
-
 
     // Get the corners from the image
     vector<Point2f> obj_corners(4), scene_corners(4);
@@ -178,9 +187,8 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     obj_corners[2] = Point2f(img_roi.cols, img_roi.rows); obj_corners[3] = Point2f(0, img_roi.rows);
 
     perspectiveTransform(obj_corners, scene_corners, H);
-
     Mat img_matches(img.clone());
-    //-- Draw lines between the corners (the mapped object in the scene - image_2 )
+    // Draw lines between the corners (the mapped object in the scene - image_2 )
     line(img_matches, scene_corners[0], scene_corners[1], Scalar(0, 255, 0), 4);
     line(img_matches, scene_corners[1], scene_corners[2], Scalar(0, 255, 0), 4);
     line(img_matches, scene_corners[2], scene_corners[3], Scalar(0, 255, 0), 4);
@@ -188,7 +196,27 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     imshow("lines", img_matches);
     waitKey(10);
 
-    return (!best_matches.empty()); // return true if there are enough good matches
+    // Check correctnes of H
+    bool cConvex = isContourConvex(scene_corners);
+    cout << "IsContourConvex -- " << cConvex << endl;
+    cout << "Points are: " << scene_corners[0] << scene_corners[1] << scene_corners[2] << scene_corners[3] << endl;
+
+    if (!cConvex) return false;
+
+    double scene_area = contourArea(scene_corners);
+    cout << "Contour Area -- " << scene_area << endl;
+    if (scene_area < MIN_CONTOUR_AREA_PX) return false;
+
+    double ratio = scene_area/img_roi.size().area();
+    cout << "Area ratio -- " << ratio << endl;
+
+    if ((ratio < MIN_CONTOUR_AREA_RATIO) ||
+        (ratio > MAX_CONTOUR_AREA_RATIO)) return false;
+
+    Mat(matched_f_points).copyTo(matched_features);
+    Mat(matched_3d_keypoints).copyTo(pattern_points);
+
+    return (!good_matches.empty()); // return true if there are enough good matches
 }
 
 void CustomPattern::getPatternPoints(OutputArray original_points)
