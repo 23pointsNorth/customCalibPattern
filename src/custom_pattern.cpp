@@ -144,45 +144,35 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     }
     cout << "After point ratio size: " << good_matches.size() << endl;
 
-    // Calculation of max and min distances between keypoints
-    double max_dist = 0;
-    double min_dist = 1e10;
-    for(unsigned int i = 0; i < good_matches.size(); ++i)
+    Mat(matched_f_points).copyTo(matched_features); // vectors need to be corrected with data below
+    Mat(matched_3d_keypoints).copyTo(pattern_points);
+    if (good_matches.size() < 3) return false;
+
+    double max_error = 1;
+    Mat mask; // or vector<uchar>
+    Mat H = findHomography(obj_points, matched_f_points, RANSAC, max_error, mask);
+    if (H.empty())
     {
-        double dist = good_matches[i].distance;
-        if(dist < min_dist) min_dist = dist;
-        if(dist > max_dist) max_dist = dist;
+        cout << "findHomography() returned empty Mat." << endl;
+        return false;
     }
 
     for(unsigned int i = 0; i < good_matches.size(); ++i)
     {
-        if(good_matches[i].distance <= max(2 * min_dist, 20.0))
+        if(mask.data[i])
         {
             best_matches.push_back(good_matches[i]);
         }
     }
-
-
-    cout << "After dist size: " << best_matches.size() << endl;
+    cout << "After findHomography: " << best_matches.size() << endl;
 
     Mat out;
     drawMatches(img, f_keypoints, img_roi, keypoints, best_matches, out);
     // drawKeypoints(img, f_keypoints, img, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
     imshow("Matched", out);
 
-    Mat(matched_f_points).copyTo(matched_features);
-    Mat(matched_3d_keypoints).copyTo(pattern_points);
-    if (best_matches.size() < 3) return false;
 
-    double max_error = 2;
-    Mat H = findHomography(obj_points, matched_f_points, RANSAC, max_error);
-    if (H.empty())
-    {
-        cout << "H: " << H.size() << endl;
-        cout << "findHomography returned empty Mat." << endl;
-        return false;
-    }
-    //-- Get the corners from the image
+    // Get the corners from the image
     vector<Point2f> obj_corners(4), scene_corners(4);
     obj_corners[0] = Point2f(0, 0); obj_corners[1] = Point2f(img_roi.cols, 0);
     obj_corners[2] = Point2f(img_roi.cols, img_roi.rows); obj_corners[3] = Point2f(0, img_roi.rows);
