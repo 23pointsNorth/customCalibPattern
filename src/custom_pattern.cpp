@@ -57,8 +57,8 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
 
         img(roi).copyTo(img_roi);
 
-        detector = FeatureDetector::create("FAST");
-        // detector->set("nFeatures", 2000);
+        detector = FeatureDetector::create("ORB");
+        detector->set("nFeatures", 2000);
         descriptorExtractor = DescriptorExtractor::create("ORB");
 
         detector->detect(img_roi, keypoints);
@@ -140,7 +140,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
 
     for(int i = 0; i < f_descriptor.rows; ++i)
     {
-        if(matches[i][0].distance < 0.65 * matches[i][1].distance)
+        if(matches[i][0].distance < 0.60 * matches[i][1].distance)
         {
             const DMatch& dm = matches[i][0];
             good_matches.push_back(dm);
@@ -155,9 +155,9 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     }
     cout << "After point ratio size: " << good_matches.size() << endl;
 
-    if (good_matches.size() < 3) return false;
+    if (good_matches.size() < 15) return false; // 2*3 + 1 = RANSAC 50%+1
 
-    double max_error = 1;
+    double max_error = 8;
     Mat mask; // or vector<uchar>
     Mat H = findHomography(obj_points, matched_f_points, RANSAC, max_error, mask);
     if (H.empty())
@@ -175,11 +175,10 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
             deleteStdVecElem(matched_3d_keypoints, i);
         }
     }
-    cout << "After findHomography: " << good_matches.size() << endl;
 
-    Mat out;
-    drawMatches(img, f_keypoints, img_roi, keypoints, good_matches, out);
-    imshow("Matched", out);
+    cout << "After findHomography: " << good_matches.size() << endl;
+    if (good_matches.empty()) return false;
+
 
     // Get the corners from the image
     vector<Point2f> obj_corners(4), scene_corners(4);
@@ -187,31 +186,49 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     obj_corners[2] = Point2f(img_roi.cols, img_roi.rows); obj_corners[3] = Point2f(0, img_roi.rows);
 
     perspectiveTransform(obj_corners, scene_corners, H);
-    Mat img_matches(img.clone());
+    // Mat img_matches(img.clone());
     // Draw lines between the corners (the mapped object in the scene - image_2 )
-    line(img_matches, scene_corners[0], scene_corners[1], Scalar(0, 255, 0), 4);
-    line(img_matches, scene_corners[1], scene_corners[2], Scalar(0, 255, 0), 4);
-    line(img_matches, scene_corners[2], scene_corners[3], Scalar(0, 255, 0), 4);
-    line(img_matches, scene_corners[3], scene_corners[0], Scalar(0, 255, 0), 4);
-    imshow("lines", img_matches);
-    waitKey(10);
 
     // Check correctnes of H
+    // Is is a convex hull?
     bool cConvex = isContourConvex(scene_corners);
     cout << "IsContourConvex -- " << cConvex << endl;
     cout << "Points are: " << scene_corners[0] << scene_corners[1] << scene_corners[2] << scene_corners[3] << endl;
-
     if (!cConvex) return false;
 
+    // Is the hull too large or small?
     double scene_area = contourArea(scene_corners);
     cout << "Contour Area -- " << scene_area << endl;
     if (scene_area < MIN_CONTOUR_AREA_PX) return false;
-
     double ratio = scene_area/img_roi.size().area();
     cout << "Area ratio -- " << ratio << endl;
-
     if ((ratio < MIN_CONTOUR_AREA_RATIO) ||
         (ratio > MAX_CONTOUR_AREA_RATIO)) return false;
+
+
+    // Is any of the projected points outside the hull?
+    int k = 0;
+    for(unsigned int i = 0; i < good_matches.size(); ++i)
+    {
+        if(pointPolygonTest(scene_corners, f_keypoints[good_matches[i].queryIdx].pt, false) < 0)
+        {
+            ++k;
+            deleteStdVecElem(good_matches, i);
+            deleteStdVecElem(matched_f_points, i);
+            deleteStdVecElem(matched_3d_keypoints, i);
+        }
+    }
+    cout << "K: " << k << endl;
+
+    Mat out;
+    // imshow("lines", out);
+    drawMatches(img, f_keypoints, img_roi, keypoints, good_matches, out);
+    line(out, scene_corners[0], scene_corners[1], Scalar(0, 255, 0), 2);
+    line(out, scene_corners[1], scene_corners[2], Scalar(0, 255, 0), 2);
+    line(out, scene_corners[2], scene_corners[3], Scalar(0, 255, 0), 2);
+    line(out, scene_corners[3], scene_corners[0], Scalar(0, 255, 0), 2);
+    imshow("Matched", out);
+    waitKey(10);
 
     Mat(matched_f_points).copyTo(matched_features);
     Mat(matched_3d_keypoints).copyTo(pattern_points);
