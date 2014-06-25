@@ -59,6 +59,8 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
 
         detector = FeatureDetector::create("ORB");
         detector->set("nFeatures", 2000);
+        detector->set("scaleFactor", 1.1);
+        detector->set("nLevels", 20);
         descriptorExtractor = DescriptorExtractor::create("ORB");
 
         detector->detect(img_roi, keypoints);
