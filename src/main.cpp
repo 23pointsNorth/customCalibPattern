@@ -85,9 +85,12 @@ int main()
 		// cout << "Called." << endl;
 	}while(key != 'q');
 
+	if (matched_points.empty()) return 0;
+
 	Mat K, distCoeff;
 	vector<Mat> rvec, tvec;
-	cout << "rms: " << pattern->calibrate(obj_points, matched_points, frame.size(), K, distCoeff, rvec, tvec) << endl;
+	cout << "RMS: " << pattern->calibrate(obj_points, matched_points, frame.size(), K, distCoeff, rvec, tvec) << endl;
+	cout << "K: " << K << endl << "distCoeff" << distCoeff << endl;
 
 	Mat undist;
 	undistort(frame, undist, K, distCoeff);
