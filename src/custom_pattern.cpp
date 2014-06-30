@@ -15,6 +15,8 @@ using namespace std;
 #define MIN_CONTOUR_AREA_RATIO  0.2
 #define MAX_CONTOUR_AREA_RATIO  5
 
+#define MIN_POINTS_FOR_H        10
+
 namespace cv{
 
 CustomPattern::CustomPattern(InputArray image, const Rect roi,
@@ -59,8 +61,8 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
 
         detector = FeatureDetector::create("ORB");
         detector->set("nFeatures", 2000);
-        detector->set("scaleFactor", 1.1);
-        detector->set("nLevels", 20);
+        detector->set("scaleFactor", 1.15);
+        detector->set("nLevels", 30);
         descriptorExtractor = DescriptorExtractor::create("ORB");
 
         detector->detect(img_roi, keypoints);
@@ -130,7 +132,6 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     if(f_descriptor.type() != CV_32F) { f_descriptor.convertTo(f_descriptor, CV_32F);}
     if(descriptor.type() != CV_32F) { descriptor.convertTo(descriptor, CV_32F);}
     matcher.knnMatch(f_descriptor, descriptor, matches, 2); // k = 2;
-
     #else
     descriptorMatcher->knnMatch(f_descriptor, descriptor, matches, 2); // k = 2;
     #endif
@@ -157,7 +158,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     }
     cout << "After point ratio size: " << good_matches.size() << endl;
 
-    if (good_matches.size() < 15) return false; // 2*3 + 1 = RANSAC 50%+1
+    if (good_matches.size() < MIN_POINTS_FOR_H) return false; // 2*3 + 1 = RANSAC 50%+1
 
     double max_error = 8;
     Mat mask; // or vector<uchar>
@@ -229,11 +230,47 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     line(out, scene_corners[1], scene_corners[2], Scalar(0, 255, 0), 2);
     line(out, scene_corners[2], scene_corners[3], Scalar(0, 255, 0), 2);
     line(out, scene_corners[3], scene_corners[0], Scalar(0, 255, 0), 2);
+    cout << "@@@@@@@@@@@@@@@@@@@@@@@@@ BIG: " << good_matches.size() << endl;
     imshow("Matched", out);
     waitKey(10);
 
     Mat(matched_f_points).copyTo(matched_features);
     Mat(matched_3d_keypoints).copyTo(pattern_points);
+
+    // RE-Matching
+    // Expand image if pattern roi outside
+    Rect r = boundingRect(scene_corners);
+    int left = 0, right = 0, top = 0, bottom = 0;
+    if (r.x < 0) { left = abs(r.x); r += Point(left, 0); }
+    if (r.y < 0) { top = abs(r.y); r += Point(0, top); }
+    if (r.x + r.width > img.cols) { right = (r.x + r.width) - img.cols;}
+    if (r.y + r.height > img.rows) { bottom = (r.y + r.height) - img.rows;}
+    Mat img_big;
+    copyMakeBorder(img, img_big, top, bottom, left, right, BORDER_CONSTANT, CV_RGB(255, 255, 255));
+
+    // Detect
+    Mat i = img_big(r);
+    detector->detect(i, f_keypoints);
+    // Mat o;
+    // drawKeypoints(i, f_keypoints, o, CV_RGB(255, 0, 0));
+    // imshow("re-matched keypoints", o);
+
+    // Rematch and filter
+    descriptorExtractor->compute(i, f_keypoints, f_descriptor);
+    good_matches.clear();
+    matches.clear();
+    descriptorMatcher->knnMatch(f_descriptor, descriptor, matches, 2);
+    for(int i = 0; i < f_descriptor.rows; ++i)
+    {
+        if(matches[i][0].distance < 0.75 * matches[i][1].distance)
+        {
+            const DMatch& dm = matches[i][0];
+            good_matches.push_back(dm);
+        }
+    }
+    drawMatches(i, f_keypoints, img_roi, keypoints, good_matches, out);
+    cout << "@@@@@@@@@@@@@@@@@@@@@@@ SMALL: " << good_matches.size() << endl;
+    imshow("RE-Matched", out);
 
     return (!good_matches.empty()); // return true if there are enough good matches
 }
