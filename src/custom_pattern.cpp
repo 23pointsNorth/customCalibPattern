@@ -262,7 +262,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     descriptorMatcher->knnMatch(f_descriptor, descriptor, matches, 2);
     for(int i = 0; i < f_descriptor.rows; ++i)
     {
-        if(matches[i][0].distance < 0.75 * matches[i][1].distance)
+        if(matches[i][0].distance < 0.7 * matches[i][1].distance)
         {
             const DMatch& dm = matches[i][0];
             good_matches.push_back(dm);
