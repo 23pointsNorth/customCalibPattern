@@ -88,6 +88,7 @@ private:
 	std::vector<Point3f> points3d;
 	Mat descriptor;
 
+	bool findPatternPass(const cv::Mat& image, std::vector<Point2f>& matched_features, std::vector<Point3f>& pattern_points, cv::Mat& H, cv::Rect& roi, const double pratio, const double proj_error, cv::OutputArray output = cv::noArray());
 	void scaleFoundPoints(const double squareSize, const std::vector<KeyPoint>& corners, std::vector<Point3f>& points3d);
 };
 
