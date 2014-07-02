@@ -18,14 +18,12 @@ void onMouse(int event, int x, int y, int, void* data)
     	roi->y = y;
     	roi->width = 0;
     	roi->height = 0;
-    	// cout << "EVENT_LBUTTONDOWN: " << x  << " " << y <<endl;
     	mdown = true;
     }
     if(event == EVENT_LBUTTONUP)
     {
     	roi->width = x - roi->x;
     	roi->height = y - roi->y;
-    	// cout << "EVENT_LBUTTONUP: " << x  << " " << y <<endl;
     	cout << "ROI: " << *roi << endl;
     	mdown = false;
     }

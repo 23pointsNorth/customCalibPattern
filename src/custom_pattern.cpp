@@ -114,7 +114,7 @@ void deleteStdVecElem(vector<Tstve>& v, int idx)
 }
 
 bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_features, vector<Point3f>& pattern_points,
-                                    Mat& H, Rect& roi, const double pratio, const double proj_error, OutputArray output)
+                                    Mat& H, vector<Point2f>& scene_corners, const double pratio, const double proj_error, const Mat& mask, OutputArray output)
 {
     if (!initialized) {return false; }
     matched_features.clear();
@@ -124,9 +124,9 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
     vector<KeyPoint> f_keypoints;
     Mat f_descriptor;
 
-    detector->detect(image, f_keypoints);
+    detector->detect(image, f_keypoints, mask);
     descriptorExtractor->compute(image, f_keypoints, f_descriptor);
-    descriptorMatcher->knnMatch(f_descriptor, descriptor, matches, 2); // k = 2;
+    descriptorMatcher->knnMatch(f_descriptor, descriptor, matches, 2, mask); // k = 2;
 
     vector<DMatch> good_matches;
     vector<Point2f> obj_points;
@@ -150,8 +150,8 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
 
     if (good_matches.size() < MIN_POINTS_FOR_H) return false; // 2*3 + 1 = RANSAC 50%+1
 
-    Mat mask; // or vector<uchar>
-    H = findHomography(obj_points, matched_features, RANSAC, proj_error, mask);
+    Mat h_mask; // or vector<uchar>
+    H = findHomography(obj_points, matched_features, RANSAC, proj_error, h_mask);
     if (H.empty())
     {
         cout << "findHomography() returned empty Mat." << endl;
@@ -160,7 +160,7 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
 
     for(unsigned int i = 0; i < good_matches.size(); ++i)
     {
-        if(!mask.data[i])
+        if(!h_mask.data[i])
         {
             deleteStdVecElem(good_matches, i);
             deleteStdVecElem(matched_features, i);
@@ -172,7 +172,8 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
     if (good_matches.empty()) return false;
 
     // Get the corners from the image
-    vector<Point2f> obj_corners(4), scene_corners(4);
+    vector<Point2f> obj_corners(4);
+    scene_corners = vector<Point2f>(4);
     obj_corners[0] = Point2f(0, 0); obj_corners[1] = Point2f(img_roi.cols, 0);
     obj_corners[2] = Point2f(img_roi.cols, img_roi.rows); obj_corners[3] = Point2f(0, img_roi.rows);
 
@@ -197,18 +198,18 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
         (ratio > MAX_CONTOUR_AREA_RATIO)) return false;
 
     // Is any of the projected points outside the hull?
-    int k = 0;
+    // int k = 0;
     for(unsigned int i = 0; i < good_matches.size(); ++i)
     {
         if(pointPolygonTest(scene_corners, f_keypoints[good_matches[i].queryIdx].pt, false) < 0)
         {
-            ++k;
+            // ++k;
             deleteStdVecElem(good_matches, i);
             deleteStdVecElem(matched_features, i);
             deleteStdVecElem(pattern_points, i);
         }
     }
-    cout << "K: " << k << endl;
+    // cout << "K: " << k << endl;
 
     Mat out;
     drawMatches(image, f_keypoints, img_roi, keypoints, good_matches, out);
@@ -216,7 +217,7 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
     line(out, scene_corners[1], scene_corners[2], Scalar(0, 255, 0), 2);
     line(out, scene_corners[2], scene_corners[3], Scalar(0, 255, 0), 2);
     line(out, scene_corners[3], scene_corners[0], Scalar(0, 255, 0), 2);
-    roi = boundingRect(scene_corners);
+
     if (output.needed()) out.copyTo(output);
     cout << "@@@@@@@@@@@@@@@@@@@@@@@@@ BIG: " << good_matches.size() << endl;
     // imshow("Matched", out);
@@ -232,33 +233,39 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     vector<Point2f> m_ftrs;
     vector<Point3f> pattern_pts;
     Mat H;
-    Rect r;
-    if (!findPatternPass(img, m_ftrs, pattern_pts, H, r, 0.6, 8))
+    vector<Point2f> scene_corners;
+    if (!findPatternPass(img, m_ftrs, pattern_pts, H, scene_corners, 0.6, 8))
         return false; // pattern not found
 
-    Point2f offset = r.tl();
-    // Expand image if pattern roi outside
-    int left = 0, right = 0, top = 0, bottom = 0;
-    if (r.x < 0) { left = abs(r.x); r += Point(left, 0); }
-    if (r.y < 0) { top = abs(r.y); r += Point(0, top); }
-    if (r.x + r.width > img.cols) { right = (r.x + r.width) - img.cols;}
-    if (r.y + r.height > img.rows) { bottom = (r.y + r.height) - img.rows;}
-    Mat img_big;
-    copyMakeBorder(img, img_big, top, bottom, left, right, BORDER_CONSTANT, CV_RGB(255, 255, 255));
+    Mat mask = Mat::zeros(img.size(), CV_8UC1);
+    vector<vector<Point2f> > obj(1); obj.push_back(scene_corners);
+    drawContours(mask, obj, 0, CV_RGB(255, 255, 255), FILLED);
+    // fillConvexPoly(mask, &scene_corners, scene_corners.size(), CV_RGB(255, 255, 255), FILLED);
+
+    // Rect r = boundingRect(scene_corners);
+    // Point2f offset = r.tl();
+    // // Expand image if pattern roi outside
+    // int left = 0, right = 0, top = 0, bottom = 0;
+    // if (r.x < 0) { left = abs(r.x); r += Point(left, 0); }
+    // if (r.y < 0) { top = abs(r.y); r += Point(0, top); }
+    // if (r.x + r.width > img.cols) { right = (r.x + r.width) - img.cols;}
+    // if (r.y + r.height > img.rows) { bottom = (r.y + r.height) - img.rows;}
+    // Mat img_big;
+    // copyMakeBorder(img, img_big, top, bottom, left, right, BORDER_CONSTANT, CV_RGB(255, 255, 255));
 
 
-    // Second pass
+    // // Second pass
+    // img = img_big(r);
     Mat output;
-    img = img_big(r);
-    if (!findPatternPass(img, m_ftrs, pattern_pts, H, r, 0.7, 8, output))
+    if (!findPatternPass(img, m_ftrs, pattern_pts, H, scene_corners, 0.7, 8, output))
         return false; // pattern not found
     imshow("OUTPUT!", output);
     waitKey(10);
 
-    for (uint i = 0; i < m_ftrs.size(); ++i)
-    {
-        m_ftrs[i] += offset;
-    }
+    // for (uint i = 0; i < m_ftrs.size(); ++i)
+    // {
+    //     m_ftrs[i] += offset;
+    // }
     Mat(m_ftrs).copyTo(matched_features);
     Mat(pattern_pts).copyTo(pattern_points);
 
