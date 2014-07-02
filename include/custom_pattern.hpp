@@ -76,21 +76,21 @@ private:
 	//operator=
 
 	Mat img_roi;
+	std::vector<Point2f> obj_corners;
 
 	bool initialized;
 
 	Ptr<FeatureDetector> detector;
 	Ptr<DescriptorExtractor> descriptorExtractor;
 	Ptr<DescriptorMatcher> descriptorMatcher;
-	FlannBasedMatcher matcher;
 
 	std::vector<KeyPoint> keypoints;
 	std::vector<Point3f> points3d;
 	Mat descriptor;
 
-	bool findPatternPass(const cv::Mat& image, std::vector<Point2f>& matched_features, std::vector<Point3f>& pattern_points,
-							cv::Mat& H, std::vector<cv::Point2f>& scene_corners, const double pratio, const double proj_error,
-							const Mat& mask = Mat(), cv::OutputArray output = cv::noArray());
+	bool findPatternPass(const Mat& image, std::vector<Point2f>& matched_features, std::vector<Point3f>& pattern_points,
+						 Mat& H, std::vector<Point2f>& scene_corners, const double pratio, const double proj_error,
+						 const Mat& mask = Mat(), OutputArray output = noArray());
 	void scaleFoundPoints(const double squareSize, const std::vector<KeyPoint>& corners, std::vector<Point3f>& points3d);
 };
 

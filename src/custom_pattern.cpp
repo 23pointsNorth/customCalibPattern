@@ -9,8 +9,6 @@
 
 using namespace std;
 
-#define FLANN_ON    0
-
 #define MIN_CONTOUR_AREA_PX     100
 #define MIN_CONTOUR_AREA_RATIO  0.2
 #define MAX_CONTOUR_AREA_RATIO  5
@@ -58,6 +56,9 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
         double pixelSize = 1;//norm(box_len)/size;
 
         img(roi).copyTo(img_roi);
+        obj_corners = std::vector<Point2f>(4);
+        obj_corners[0] = Point2f(0, 0); obj_corners[1] = Point2f(img_roi.cols, 0);
+        obj_corners[2] = Point2f(img_roi.cols, img_roi.rows); obj_corners[3] = Point2f(0, img_roi.rows);
 
         detector = FeatureDetector::create("ORB");
         detector->set("nFeatures", 2000);
@@ -69,11 +70,8 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
         cout << "Keypoints count: " << keypoints.size() << endl;
         descriptorExtractor->compute(img_roi, keypoints, descriptor);
 
-        #if (not FLANN_ON)
         descriptorMatcher = DescriptorMatcher::create("BruteForce-Hamming(2)");
-        // descriptorMatcher->set("crossCheck", true); // not valid with k!=1
         cout << "BruteForce-Hamming(2) matcher." << endl;
-        #endif
 
         Mat o;
         drawKeypoints(img_roi, keypoints, o, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
@@ -137,13 +135,11 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
         {
             const DMatch& dm = matches[i][0];
             good_matches.push_back(dm);
-            // cout << "Adding point " << i << " with Qidx: " << dm.queryIdx << " Tidx: "  <<  dm.trainIdx << endl;
-            // Collocate needed data for return
             // "keypoints1[matches[i].queryIdx] has a corresponding point in keypoints2[matches[i].trainIdx]"
             matched_features.push_back(f_keypoints[dm.queryIdx].pt);
             pattern_points.push_back(points3d[dm.trainIdx]);
             obj_points.push_back(keypoints[dm.trainIdx].pt);
-            // cout << "Point added." << endl;
+
         }
     }
     cout << "After point ratio size: " << good_matches.size() << endl;
@@ -172,17 +168,11 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
     if (good_matches.empty()) return false;
 
     // Get the corners from the image
-    vector<Point2f> obj_corners(4);
     scene_corners = vector<Point2f>(4);
-    obj_corners[0] = Point2f(0, 0); obj_corners[1] = Point2f(img_roi.cols, 0);
-    obj_corners[2] = Point2f(img_roi.cols, img_roi.rows); obj_corners[3] = Point2f(0, img_roi.rows);
-
     perspectiveTransform(obj_corners, scene_corners, H);
-    // Mat img_matches(image.clone());
-    // Draw lines between the corners (the mapped object in the scene - image_2 )
 
     // Check correctnes of H
-    // Is is a convex hull?
+    // Is it a convex hull?
     bool cConvex = isContourConvex(scene_corners);
     cout << "IsContourConvex -- " << cConvex << endl;
     cout << "Points are: " << scene_corners[0] << scene_corners[1] << scene_corners[2] << scene_corners[3] << endl;
@@ -198,30 +188,27 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
         (ratio > MAX_CONTOUR_AREA_RATIO)) return false;
 
     // Is any of the projected points outside the hull?
-    // int k = 0;
     for(unsigned int i = 0; i < good_matches.size(); ++i)
     {
         if(pointPolygonTest(scene_corners, f_keypoints[good_matches[i].queryIdx].pt, false) < 0)
         {
-            // ++k;
             deleteStdVecElem(good_matches, i);
             deleteStdVecElem(matched_features, i);
             deleteStdVecElem(pattern_points, i);
         }
     }
-    // cout << "K: " << k << endl;
 
-    Mat out;
-    drawMatches(image, f_keypoints, img_roi, keypoints, good_matches, out);
-    line(out, scene_corners[0], scene_corners[1], Scalar(0, 255, 0), 2);
-    line(out, scene_corners[1], scene_corners[2], Scalar(0, 255, 0), 2);
-    line(out, scene_corners[2], scene_corners[3], Scalar(0, 255, 0), 2);
-    line(out, scene_corners[3], scene_corners[0], Scalar(0, 255, 0), 2);
-
-    if (output.needed()) out.copyTo(output);
-    cout << "@@@@@@@@@@@@@@@@@@@@@@@@@ BIG: " << good_matches.size() << endl;
-    // imshow("Matched", out);
-    // waitKey(10);
+    if (output.needed())
+    {
+        Mat out;
+        drawMatches(image, f_keypoints, img_roi, keypoints, good_matches, out);
+        // Draw lines between the corners (the mapped object in the scene - image_2 )
+        line(out, scene_corners[0], scene_corners[1], Scalar(0, 255, 0), 2);
+        line(out, scene_corners[1], scene_corners[2], Scalar(0, 255, 0), 2);
+        line(out, scene_corners[2], scene_corners[3], Scalar(0, 255, 0), 2);
+        line(out, scene_corners[3], scene_corners[0], Scalar(0, 255, 0), 2);
+        out.copyTo(output);
+    }
 
     return (!good_matches.empty()); // return true if there are enough good matches
 }
@@ -240,32 +227,14 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     Mat mask = Mat::zeros(img.size(), CV_8UC1);
     vector<vector<Point2f> > obj(1); obj.push_back(scene_corners);
     drawContours(mask, obj, 0, CV_RGB(255, 255, 255), FILLED);
-    // fillConvexPoly(mask, &scene_corners, scene_corners.size(), CV_RGB(255, 255, 255), FILLED);
 
-    // Rect r = boundingRect(scene_corners);
-    // Point2f offset = r.tl();
-    // // Expand image if pattern roi outside
-    // int left = 0, right = 0, top = 0, bottom = 0;
-    // if (r.x < 0) { left = abs(r.x); r += Point(left, 0); }
-    // if (r.y < 0) { top = abs(r.y); r += Point(0, top); }
-    // if (r.x + r.width > img.cols) { right = (r.x + r.width) - img.cols;}
-    // if (r.y + r.height > img.rows) { bottom = (r.y + r.height) - img.rows;}
-    // Mat img_big;
-    // copyMakeBorder(img, img_big, top, bottom, left, right, BORDER_CONSTANT, CV_RGB(255, 255, 255));
-
-
-    // // Second pass
-    // img = img_big(r);
+    // Second pass
     Mat output;
     if (!findPatternPass(img, m_ftrs, pattern_pts, H, scene_corners, 0.7, 8, output))
         return false; // pattern not found
     imshow("OUTPUT!", output);
     waitKey(10);
 
-    // for (uint i = 0; i < m_ftrs.size(); ++i)
-    // {
-    //     m_ftrs[i] += offset;
-    // }
     Mat(m_ftrs).copyTo(matched_features);
     Mat(pattern_pts).copyTo(pattern_points);
 
