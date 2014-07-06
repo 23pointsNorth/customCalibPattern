@@ -112,7 +112,8 @@ void deleteStdVecElem(vector<Tstve>& v, int idx)
 }
 
 bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_features, vector<Point3f>& pattern_points,
-                                    Mat& H, vector<Point2f>& scene_corners, const double pratio, const double proj_error, const Mat& mask, OutputArray output)
+                                    Mat& H, vector<Point2f>& scene_corners, const double pratio, const double proj_error,
+                                    const Mat& mask, OutputArray output)
 {
     if (!initialized) {return false; }
     matched_features.clear();
@@ -124,8 +125,7 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
 
     detector->detect(image, f_keypoints, mask);
     descriptorExtractor->compute(image, f_keypoints, f_descriptor);
-    descriptorMatcher->knnMatch(f_descriptor, descriptor, matches, 2, mask); // k = 2;
-
+    descriptorMatcher->knnMatch(f_descriptor, descriptor, matches, 2); // k = 2;
     vector<DMatch> good_matches;
     vector<Point2f> obj_points;
 
@@ -223,14 +223,17 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     vector<Point2f> scene_corners;
     if (!findPatternPass(img, m_ftrs, pattern_pts, H, scene_corners, 0.6, 8))
         return false; // pattern not found
-
     Mat mask = Mat::zeros(img.size(), CV_8UC1);
-    vector<vector<Point2f> > obj(1); obj.push_back(scene_corners);
-    drawContours(mask, obj, 0, CV_RGB(255, 255, 255), FILLED);
+    vector<vector<Point> > obj(1);
+    vector<Point> scorners_int(scene_corners.size());
+    for (uint i = 0; i < scene_corners.size(); ++i)
+        scorners_int[i] = (Point)scene_corners[i]; // for drawContours
+    obj[0] = scorners_int;
+    drawContours(mask, obj, 0, Scalar(255), FILLED);
 
     // Second pass
     Mat output;
-    if (!findPatternPass(img, m_ftrs, pattern_pts, H, scene_corners, 0.7, 8, output))
+    if (!findPatternPass(img, m_ftrs, pattern_pts, H, scene_corners, 0.7, 8, mask, output))
         return false; // pattern not found
     imshow("OUTPUT!", output);
     waitKey(10);
