@@ -132,7 +132,7 @@ void CustomPattern::refinePointsPos(const Mat& img, vector<Point2f>& p)
 {
     Mat gray;
     cvtColor(img, gray, COLOR_RGB2GRAY);
-    cornerSubPix(gray, p, Size(3, 3), Size(-1, -1),
+    cornerSubPix(gray, p, Size(10, 10), Size(-1, -1),
                 TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 30, 0.1));
 
 }
