@@ -15,6 +15,8 @@ using namespace std;
 
 #define MIN_POINTS_FOR_H        10
 
+#define MAX_PROJ_ERROR_PX       5.0
+
 namespace cv{
 
 CustomPattern::CustomPattern(InputArray image, const Rect roi,
@@ -53,7 +55,8 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
 
         // // Average pixel size across the whole width.
         // Point2d box_len = (corners[0] - corners[patternSize.width]) * (1.0 / patternSize.width);
-        double pixelSize = 1;//norm(box_len)/size;
+        // cout << "Scale: " << norm(box_len)/size << endl;
+        double pixelSize = 1; //norm(box_len)/size;
 
         img(roi).copyTo(img_roi);
         obj_corners = std::vector<Point2f>(4);
@@ -67,6 +70,8 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
         descriptorExtractor = DescriptorExtractor::create("ORB");
 
         detector->detect(img_roi, keypoints);
+        refineKeypointsPos(img_roi, keypoints);
+
         cout << "Keypoints count: " << keypoints.size() << endl;
         descriptorExtractor->compute(img_roi, keypoints, descriptor);
 
@@ -104,11 +109,83 @@ void CustomPattern::scaleFoundPoints(const double pixelSize,
     }
 }
 
+//Takes a descriptor and turns it into an (x,y) point
+void CustomPattern::keypoints2points(const vector<KeyPoint>& in, vector<Point2f>& out)
+{
+    out.clear();
+    out.reserve(in.size());
+    for (size_t i = 0; i < in.size(); ++i)
+    {
+        out.push_back(in[i].pt);
+    }
+}
+
+void CustomPattern::updateKeypointsPos(vector<KeyPoint>& in, const vector<Point2f>& new_pos)
+{
+    for (size_t i = 0; i < in.size(); ++i)
+    {
+        in[i].pt= new_pos[i];
+    }
+}
+
+void CustomPattern::refinePointsPos(const Mat& img, vector<Point2f>& p)
+{
+    Mat gray;
+    cvtColor(img, gray, COLOR_RGB2GRAY);
+    cornerSubPix(gray, p, Size(3, 3), Size(-1, -1),
+                TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 30, 0.1));
+
+}
+
+void CustomPattern::refineKeypointsPos(const Mat& img, vector<KeyPoint>& kp)
+{
+    vector<Point2f> points;
+    keypoints2points(kp, points);
+    refinePointsPos(img, points);
+    updateKeypointsPos(kp, points);
+}
+
 template<typename Tstve>
 void deleteStdVecElem(vector<Tstve>& v, int idx)
 {
     v[idx] = v.back();
     v.pop_back();
+}
+
+void CustomPattern::check_matches(vector<Point2f>& matched, const vector<Point2f>& pattern, vector<DMatch>& good,
+                                  vector<Point3f>& pattern_3d, const Mat& H)
+{
+    vector<Point2f> proj;
+    perspectiveTransform(pattern, proj, H);
+
+    cout << "a=[";
+
+    int deleted = 0;
+    double error_sum = 0;
+    double error_sum_filtered = 0;
+    for (uint i = 0; i < proj.size(); ++i)
+    {
+        double error = norm(matched[i] - proj[i]);
+        error_sum += error;
+        if (error >= MAX_PROJ_ERROR_PX)
+        {
+            deleteStdVecElem(good, i);
+            deleteStdVecElem(matched, i);
+            deleteStdVecElem(pattern_3d, i);
+            ++deleted;
+        }
+        else
+        {
+            cout << matched[i] - proj[i] << ";";
+            error_sum_filtered += error;
+        }
+    }
+    cout << "];" << endl;
+    cout << " Error sum: " << error_sum << endl;
+    cout << " Mean errros: " << error_sum / pattern.size() << endl;
+    cout << " Filered errros: " << error_sum_filtered << endl;
+    cout << " Filtered Mean errros: " << error_sum_filtered / good.size() << endl;
+
 }
 
 bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_features, vector<Point3f>& pattern_points,
@@ -124,11 +201,13 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
     Mat f_descriptor;
 
     detector->detect(image, f_keypoints, mask);
+    refineKeypointsPos(image, f_keypoints);
     descriptorExtractor->compute(image, f_keypoints, f_descriptor);
     descriptorMatcher->knnMatch(f_descriptor, descriptor, matches, 2); // k = 2;
     vector<DMatch> good_matches;
     vector<Point2f> obj_points;
 
+    cout << "!!!!!!!!!!!!!!!!!!!!!!!!!Attempt:" << endl;
     for(int i = 0; i < f_descriptor.rows; ++i)
     {
         if(matches[i][0].distance < pratio * matches[i][1].distance)
@@ -139,6 +218,7 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
             matched_features.push_back(f_keypoints[dm.queryIdx].pt);
             pattern_points.push_back(points3d[dm.trainIdx]);
             obj_points.push_back(keypoints[dm.trainIdx].pt);
+            cout << "Test: " << keypoints[dm.trainIdx].pt << endl;
 
         }
     }
@@ -167,6 +247,11 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
     cout << "After findHomography: " << good_matches.size() << endl;
     if (good_matches.empty()) return false;
 
+    uint numb_elem = good_matches.size();
+    check_matches(matched_features, obj_points, good_matches, pattern_points, H);
+    cout << "After proj_error: " << good_matches.size() << endl;
+    if (good_matches.empty() || numb_elem < good_matches.size()) return false;
+
     // Get the corners from the image
     scene_corners = vector<Point2f>(4);
     perspectiveTransform(obj_corners, scene_corners, H);
@@ -174,13 +259,13 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
     // Check correctnes of H
     // Is it a convex hull?
     bool cConvex = isContourConvex(scene_corners);
-    cout << "IsContourConvex -- " << cConvex << endl;
-    cout << "Points are: " << scene_corners[0] << scene_corners[1] << scene_corners[2] << scene_corners[3] << endl;
+    // cout << "IsContourConvex -- " << cConvex << endl;
+    // cout << "Points are: " << scene_corners[0] << scene_corners[1] << scene_corners[2] << scene_corners[3] << endl;
     if (!cConvex) return false;
 
     // Is the hull too large or small?
     double scene_area = contourArea(scene_corners);
-    cout << "Contour Area -- " << scene_area << endl;
+    // cout << "Contour Area -- " << scene_area << endl;
     if (scene_area < MIN_CONTOUR_AREA_PX) return false;
     double ratio = scene_area/img_roi.size().area();
     cout << "Area ratio -- " << ratio << endl;
@@ -223,6 +308,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
     vector<Point2f> scene_corners;
     if (!findPatternPass(img, m_ftrs, pattern_pts, H, scene_corners, 0.6, 8))
         return false; // pattern not found
+
     Mat mask = Mat::zeros(img.size(), CV_8UC1);
     vector<vector<Point> > obj(1);
     vector<Point> scorners_int(scene_corners.size());

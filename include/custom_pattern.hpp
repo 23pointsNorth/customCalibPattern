@@ -92,6 +92,12 @@ private:
 						 Mat& H, std::vector<Point2f>& scene_corners, const double pratio, const double proj_error,
 						 const Mat& mask = Mat(), OutputArray output = noArray());
 	void scaleFoundPoints(const double squareSize, const std::vector<KeyPoint>& corners, std::vector<Point3f>& points3d);
+	void check_matches(std::vector<Point2f>& matched, const std::vector<Point2f>& pattern, std::vector<DMatch>& good, std::vector<Point3f>& pattern_3d, const Mat& H);
+
+	void keypoints2points(const std::vector<KeyPoint>& in, std::vector<Point2f>& out);
+	void updateKeypointsPos(std::vector<KeyPoint>& in, const std::vector<Point2f>& new_pos);
+	void refinePointsPos(const Mat& img, std::vector<Point2f>& p);
+	void refineKeypointsPos(const Mat& img, std::vector<KeyPoint>& kp);
 };
 
 }
