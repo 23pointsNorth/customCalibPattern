@@ -53,17 +53,26 @@ public:
 		Calls the calirateCamera function with the same inputs.
 	*/
 
-	bool getRt(InputArray image, InputArray K, InputArray distCoeffs,
-				OutputArray rvec, OutputArray tvec /*, iterative params*/);
+	bool findRt(InputArray objectPoints, InputArray imagePoints, InputArray cameraMatrix, InputArray distCoeffs,
+                OutputArray rvec, OutputArray tvec, bool useExtrinsicGuess = false, int flags = ITERATIVE);
+	bool findRt(InputArray image, InputArray cameraMatrix, InputArray distCoeffs,
+                OutputArray rvec, OutputArray tvec, bool useExtrinsicGuess = false, int flags = ITERATIVE);
 	/*
 		Uses solvePnP to find the rotation and translation of the pattern
 		with respect to the camera frame.
 	*/
-	bool getRtRANSAC(InputArray image, InputArray K, InputArray distCoeffs,
-					 OutputArray rvec, OutputArray tvec /*, RANSAC params*/);
-	/*
+
+	bool findRtRANSAC(InputArray objectPoints, InputArray imagePoints, InputArray cameraMatrix, InputArray distCoeffs,
+				OutputArray rvec, OutputArray tvec, bool useExtrinsicGuess = false, int iterationsCount = 100,
+				float reprojectionError = 8.0, int minInliersCount = 100, OutputArray inliers = noArray(), int flags = ITERATIVE);
+	bool findRtRANSAC(InputArray image, InputArray cameraMatrix, InputArray distCoeffs,
+				OutputArray rvec, OutputArray tvec, bool useExtrinsicGuess = false, int iterationsCount = 100,
+				float reprojectionError = 8.0, int minInliersCount = 100, OutputArray inliers = noArray(), int flags = ITERATIVE);
+    /*
 		Uses solvePnPRansac()
 	*/
+
+	void drawOrientation(InputOutputArray image, double axis_length = 3, double axis_width = 2);
 
 	/*
 		Other:
