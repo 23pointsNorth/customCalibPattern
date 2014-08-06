@@ -16,7 +16,7 @@ class CustomPattern
 public:
 	CustomPattern(InputArray image, const Rect roi,
 					const int flag, const Size patternSize, const float size,
-					OutputArray output=noArray());
+					OutputArray output = noArray());
 	// flag - CHESSBOARD/CIRCLE, size - physical square size
 	/*
 		1. Locate the chessboard/circle pattern -> find with subpixel accuracy
@@ -28,14 +28,19 @@ public:
 	*/
 	~CustomPattern();
 
-	bool findPattern(InputArray image, OutputArray matched_features,
-										OutputArray pattern_points /*+ ransac values*/);
+	bool findPattern(InputArray image, OutputArray matched_features, OutputArray pattern_points,
+					 const double proj_error = 8.0, const bool refine_position = false, OutputArray out = noArray(),
+					 OutputArray H = noArray(), OutputArray pattern_corners = noArray());
 	/*
 		accepting many images at the same time? FD::detect() does.
 		matched_features -> vector<Point> is the feaures matched to
 							the original set of points
 		pattern_points -> the points from the original matched pattern
 							(needed as not all points may be matched)
+		refine_position -> refine point position thorough subPixelPos.
+		H -> (Mat) The homography matrix.
+		scene_corners -> std::vector<Point2f> vector of the 4 points describing the projected pattern corners
+							(inside which the battern is bounded to)
 		The two vectors can be used to calibrate the camera.
 		@return: Found successfully.
 	*/
@@ -43,6 +48,10 @@ public:
 	void getPatternPoints(OutputArray original_points);
 	/*
 		Returns a vector<Point> of the original points.
+	*/
+	double getPixelSize();
+	/*
+		Get the pixel size of the pattern
 	*/
 
 	double calibrate(InputArrayOfArrays objectPoints, InputArrayOfArrays imagePoints,
@@ -72,7 +81,11 @@ public:
 		Uses solvePnPRansac()
 	*/
 
-	void drawOrientation(InputOutputArray image, double axis_length = 3, double axis_width = 2);
+	void drawOrientation(InputOutputArray image, InputArray tvec, InputArray rvec, InputArray pattern_corners,
+						 InputArray cameraMatrix, InputArray distCoeffs, double axis_length = 3, double axis_width = 2);
+	/*
+		pattern_corners -> projected over the image position of the edges of the pattern.
+	*/
 
 	/*
 		Other:
@@ -86,6 +99,7 @@ private:
 
 	Mat img_roi;
 	std::vector<Point2f> obj_corners;
+	double pxSize;
 
 	bool initialized;
 
@@ -99,7 +113,7 @@ private:
 
 	bool findPatternPass(const Mat& image, std::vector<Point2f>& matched_features, std::vector<Point3f>& pattern_points,
 						 Mat& H, std::vector<Point2f>& scene_corners, const double pratio, const double proj_error,
-						 const Mat& mask = Mat(), OutputArray output = noArray());
+						 const bool refine_position = false, const Mat& mask = Mat(), OutputArray output = noArray());
 	void scaleFoundPoints(const double squareSize, const std::vector<KeyPoint>& corners, std::vector<Point3f>& points3d);
 	void check_matches(std::vector<Point2f>& matched, const std::vector<Point2f>& pattern, std::vector<DMatch>& good, std::vector<Point3f>& pattern_3d, const Mat& H);
 

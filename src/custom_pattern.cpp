@@ -56,7 +56,7 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
         // // Average pixel size across the whole width.
         // Point2d box_len = (corners[0] - corners[patternSize.width]) * (1.0 / patternSize.width);
         // cout << "Scale: " << norm(box_len)/size << endl;
-        double pixelSize = 1; //norm(box_len)/size;
+        pxSize = 1; //norm(box_len)/size;
 
         img(roi).copyTo(img_roi);
         obj_corners = std::vector<Point2f>(4);
@@ -82,7 +82,7 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
         drawKeypoints(img_roi, keypoints, o, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 
         // Scale found points by pixelSize
-        scaleFoundPoints(pixelSize, keypoints, points3d);
+        scaleFoundPoints(pxSize, keypoints, points3d);
 
         initialized = (keypoints.size() != 0); // initialized if any keypoints are found
         if (output.needed()) o.copyTo(output);
@@ -158,7 +158,7 @@ void CustomPattern::check_matches(vector<Point2f>& matched, const vector<Point2f
     vector<Point2f> proj;
     perspectiveTransform(pattern, proj, H);
 
-    cout << "a=[";
+    //cout << "a=[";
 
     int deleted = 0;
     double error_sum = 0;
@@ -176,11 +176,11 @@ void CustomPattern::check_matches(vector<Point2f>& matched, const vector<Point2f
         }
         else
         {
-            cout << matched[i] - proj[i] << ";";
+            //cout << matched[i] - proj[i] << ";";
             error_sum_filtered += error;
         }
     }
-    cout << "];" << endl;
+    //cout << "];" << endl;
     cout << " Error sum: " << error_sum << endl;
     cout << " Mean errros: " << error_sum / pattern.size() << endl;
     cout << " Filered errros: " << error_sum_filtered << endl;
@@ -190,7 +190,7 @@ void CustomPattern::check_matches(vector<Point2f>& matched, const vector<Point2f
 
 bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_features, vector<Point3f>& pattern_points,
                                     Mat& H, vector<Point2f>& scene_corners, const double pratio, const double proj_error,
-                                    const Mat& mask, OutputArray output)
+                                    const bool refine_position, const Mat& mask, OutputArray output)
 {
     if (!initialized) {return false; }
     matched_features.clear();
@@ -201,7 +201,7 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
     Mat f_descriptor;
 
     detector->detect(image, f_keypoints, mask);
-    refineKeypointsPos(image, f_keypoints);
+    if (refine_position) refineKeypointsPos(image, f_keypoints);
     descriptorExtractor->compute(image, f_keypoints, f_descriptor);
     descriptorMatcher->knnMatch(f_descriptor, descriptor, matches, 2); // k = 2;
     vector<DMatch> good_matches;
@@ -218,7 +218,7 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
             matched_features.push_back(f_keypoints[dm.queryIdx].pt);
             pattern_points.push_back(points3d[dm.trainIdx]);
             obj_points.push_back(keypoints[dm.trainIdx].pt);
-            cout << "Test: " << keypoints[dm.trainIdx].pt << endl;
+            //cout << "Test: " << keypoints[dm.trainIdx].pt << endl;
 
         }
     }
@@ -298,15 +298,16 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
     return (!good_matches.empty()); // return true if there are enough good matches
 }
 
-bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
-                                                  OutputArray pattern_points)
+bool CustomPattern::findPattern(InputArray image, OutputArray matched_features, OutputArray pattern_points,
+                                const double proj_error, const bool refine_position, OutputArray out,
+                                OutputArray H, OutputArray pattern_corners)
 {
     Mat img = image.getMat();
     vector<Point2f> m_ftrs;
     vector<Point3f> pattern_pts;
-    Mat H;
+    Mat _H;
     vector<Point2f> scene_corners;
-    if (!findPatternPass(img, m_ftrs, pattern_pts, H, scene_corners, 0.6, 8))
+    if (!findPatternPass(img, m_ftrs, pattern_pts, _H, scene_corners, 0.6, proj_error, refine_position))
         return false; // pattern not found
 
     Mat mask = Mat::zeros(img.size(), CV_8UC1);
@@ -319,13 +320,17 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
 
     // Second pass
     Mat output;
-    if (!findPatternPass(img, m_ftrs, pattern_pts, H, scene_corners, 0.7, 8, mask, output))
+    if (!findPatternPass(img, m_ftrs, pattern_pts, _H, scene_corners,
+                         0.7, proj_error, refine_position, mask, output))
         return false; // pattern not found
     imshow("OUTPUT!", output);
     waitKey(10);
 
     Mat(m_ftrs).copyTo(matched_features);
     Mat(pattern_pts).copyTo(pattern_points);
+    if (out.needed()) output.copyTo(out);
+    if (H.needed()) _H.copyTo(H);
+    if (pattern_corners.needed()) Mat(scene_corners).copyTo(pattern_corners);
 
     return (!m_ftrs.empty());
 }
@@ -333,6 +338,11 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features,
 void CustomPattern::getPatternPoints(OutputArray original_points)
 {
     return Mat(keypoints).copyTo(original_points);
+}
+
+double CustomPattern::getPixelSize()
+{
+    return pxSize;
 }
 
 double CustomPattern::calibrate(InputArrayOfArrays objectPoints, InputArrayOfArrays imagePoints,
@@ -384,7 +394,32 @@ bool CustomPattern::findRtRANSAC(InputArray image, InputArray cameraMatrix, Inpu
     return true;
 }
 
+void CustomPattern::drawOrientation(InputOutputArray image, InputArray tvec, InputArray rvec,
+                                    InputArray pattern_corners, InputArray cameraMatrix, InputArray distCoeffs,
+                                    double axis_length, double axis_width)
+{
+    vector<Point3f> axis(3);
+    axis[0]=Point3f(0, 0, axis_length);
+    axis[1]=Point3f(0, axis_length, 0);
+    axis[2]=Point3f(axis_length, 0, 0);
+    vector<Point2f> proj_axis;
+    projectPoints(axis, rvec, tvec, cameraMatrix, distCoeffs, proj_axis);
 
+    Moments pm = moments(pattern_corners); //pattern moments
+    Point2f center = Point2f(pm.m10/pm.m00 , pm.m01/pm.m00);
+    //cout << "pattern_points: " << pattern_corners[0] << " " << pattern_corners[1] << " " << pattern_corners[2] << endl;
+    //cout << "Moments: " << pm << endl;
+    cout << "Center: " << center << endl;
+    cout << "Axis: " << proj_axis[0] << " " << proj_axis[1] << " " << proj_axis[2] << endl;
+    Mat img = image.getMat();
+
+    line(img, center, center + proj_axis[0], CV_RGB(255, 0, 0), axis_width);
+    line(img, center, center + proj_axis[1], CV_RGB(0, 255, 0), axis_width);
+    line(img, center, center + proj_axis[2], CV_RGB(0, 0, 255), axis_width);
+
+    imshow("inside", img);
+    img.copyTo(image);
+}
 
 
 } // namespace cv

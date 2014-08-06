@@ -190,8 +190,24 @@ int main()
 	do
 	{
 		video >> frame;
-		undistort(frame, undist, K, distCoeff);
-		imshow("Undistorted", undist);
+		//undistort(frame, undist, K, distCoeff);
+		//imshow("Undistorted", undist);
+
+		vector<Point3f> org;
+		vector<Point2f> matched, pattern_corners;
+		Mat out;
+		pattern->findPattern(frame, matched, org, 8.0, false, out, noArray(), pattern_corners);
+		if (matched.size() < 3) continue;
+
+		Mat rvec, tvec;
+		pattern->findRt(org, matched, K, distCoeff, rvec, tvec);
+
+		pattern->drawOrientation(out, tvec, rvec, pattern_corners, K, distCoeff, 10, 3);
+
+		imshow("Output", out);
+
+
+
 		key = waitKey(10);
 	}while(key != 'q');
 
