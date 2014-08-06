@@ -139,6 +139,7 @@ int main()
 	cout << "ROI selected! Creating pattern!" << endl;
 	Mat out;
 	pattern = new CustomPattern(frame, roi, CHESSBOARD_PATTERN, Size(9, 6), SQUARE_SIZE_M, out);
+	if (!pattern->isInitialized()) cout << "Pattern not initialized!" << endl;
 	cout << "Pattern created." << endl;
 
 	imshow("Algorithm", out);

@@ -58,34 +58,7 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
         // cout << "Scale: " << norm(box_len)/size << endl;
         pxSize = 1; //norm(box_len)/size;
 
-        img(roi).copyTo(img_roi);
-        obj_corners = std::vector<Point2f>(4);
-        obj_corners[0] = Point2f(0, 0); obj_corners[1] = Point2f(img_roi.cols, 0);
-        obj_corners[2] = Point2f(img_roi.cols, img_roi.rows); obj_corners[3] = Point2f(0, img_roi.rows);
-
-        detector = FeatureDetector::create("ORB");
-        detector->set("nFeatures", 2000);
-        detector->set("scaleFactor", 1.15);
-        detector->set("nLevels", 30);
-        descriptorExtractor = DescriptorExtractor::create("ORB");
-
-        detector->detect(img_roi, keypoints);
-        refineKeypointsPos(img_roi, keypoints);
-
-        cout << "Keypoints count: " << keypoints.size() << endl;
-        descriptorExtractor->compute(img_roi, keypoints, descriptor);
-
-        descriptorMatcher = DescriptorMatcher::create("BruteForce-Hamming(2)");
-        cout << "BruteForce-Hamming(2) matcher." << endl;
-
-        Mat o;
-        drawKeypoints(img_roi, keypoints, o, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-
-        // Scale found points by pixelSize
-        scaleFoundPoints(pxSize, keypoints, points3d);
-
-        initialized = (keypoints.size() != 0); // initialized if any keypoints are found
-        if (output.needed()) o.copyTo(output);
+        initialized = init(img, roi, pxSize, output);
     }
     else
     {
@@ -95,7 +68,52 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
     }
 }
 
+CustomPattern::CustomPattern(InputArray image, const Rect roi, const float pixel_size, OutputArray output)
+{
+    CV_Assert(!image.empty() && (roi.area() != 0) && (pixel_size > 0));
+    Mat img = image.getMat();
+    initialized = init(img, roi, pixel_size, output);
+}
+
+bool CustomPattern::init(Mat& image, const Rect roi, const float pixel_size, OutputArray output)
+{
+    image(roi).copyTo(img_roi);
+    obj_corners = std::vector<Point2f>(4);
+    obj_corners[0] = Point2f(0, 0); obj_corners[1] = Point2f(img_roi.cols, 0);
+    obj_corners[2] = Point2f(img_roi.cols, img_roi.rows); obj_corners[3] = Point2f(0, img_roi.rows);
+
+    detector = FeatureDetector::create("ORB");
+    detector->set("nFeatures", 2000);
+    detector->set("scaleFactor", 1.15);
+    detector->set("nLevels", 30);
+    descriptorExtractor = DescriptorExtractor::create("ORB");
+
+    detector->detect(img_roi, keypoints);
+    refineKeypointsPos(img_roi, keypoints);
+
+    cout << "Keypoints count: " << keypoints.size() << endl;
+    descriptorExtractor->compute(img_roi, keypoints, descriptor);
+
+    descriptorMatcher = DescriptorMatcher::create("BruteForce-Hamming(2)");
+    cout << "BruteForce-Hamming(2) matcher." << endl;
+
+    Mat o;
+    drawKeypoints(img_roi, keypoints, o, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+    // Scale found points by pixelSize
+    pxSize = pixel_size;
+    scaleFoundPoints(pxSize, keypoints, points3d);
+
+    if (output.needed()) o.copyTo(output);
+    return (keypoints.size() != 0); // initialized if any keypoints are found
+}
+
 CustomPattern::~CustomPattern() {}
+
+bool CustomPattern::isInitialized()
+{
+    return initialized;
+}
 
 void CustomPattern::scaleFoundPoints(const double pixelSize,
             const vector<KeyPoint>& corners, vector<Point3f>& points3d)
@@ -202,6 +220,7 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
 
     detector->detect(image, f_keypoints, mask);
     if (refine_position) refineKeypointsPos(image, f_keypoints);
+
     descriptorExtractor->compute(image, f_keypoints, f_descriptor);
     descriptorMatcher->knnMatch(f_descriptor, descriptor, matches, 2); // k = 2;
     vector<DMatch> good_matches;
@@ -302,13 +321,17 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features, 
                                 const double proj_error, const bool refine_position, OutputArray out,
                                 OutputArray H, OutputArray pattern_corners)
 {
+    CV_Assert(!image.empty() && proj_error > 0);
+
     Mat img = image.getMat();
     vector<Point2f> m_ftrs;
     vector<Point3f> pattern_pts;
     Mat _H;
     vector<Point2f> scene_corners;
+    cout << "before pattern pass" << endl;
     if (!findPatternPass(img, m_ftrs, pattern_pts, _H, scene_corners, 0.6, proj_error, refine_position))
         return false; // pattern not found
+    cout << "after pattern pass" << endl;
 
     Mat mask = Mat::zeros(img.size(), CV_8UC1);
     vector<vector<Point> > obj(1);
