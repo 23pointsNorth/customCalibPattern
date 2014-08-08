@@ -175,6 +175,7 @@ int main()
 
 	FileStorage fs("laptop_webcam_output.xml",  FileStorage::READ);
 	fs["distortion_coefficients"] >> distCoeff;
+	fs["camera_matrix"] >> K;
 	vector<float> perViewErrors;
 	cout << "Alternatively Computed rms" << computeReprojectionErrors(obj_points,
                                          matched_points,
@@ -201,9 +202,9 @@ int main()
 		if (matched.size() < 3) continue;
 
 		Mat rvec, tvec;
-		pattern->findRt(org, matched, K, distCoeff, rvec, tvec);
+		pattern->findRtRANSAC(org, matched, K, distCoeff, rvec, tvec);
 
-		pattern->drawOrientation(out, tvec, rvec, pattern_corners, K, distCoeff, 10, 3);
+		pattern->drawOrientation(out, tvec, rvec, pattern_corners, K, distCoeff, 50, 3);
 
 		imshow("Output", out);
 

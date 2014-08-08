@@ -421,24 +421,22 @@ void CustomPattern::drawOrientation(InputOutputArray image, InputArray tvec, Inp
                                     InputArray pattern_corners, InputArray cameraMatrix, InputArray distCoeffs,
                                     double axis_length, double axis_width)
 {
-    vector<Point3f> axis(3);
-    axis[0]=Point3f(0, 0, axis_length);
-    axis[1]=Point3f(0, axis_length, 0);
-    axis[2]=Point3f(axis_length, 0, 0);
+    Point3f ptrCtr3d = Point3f((img_roi.cols)/2, (img_roi.rows)/2, 0);
+
+    vector<Point3f> axis(4);
+    axis[0] = ptrCtr3d;
+    axis[1] = Point3f(axis_length, 0, 0) + ptrCtr3d;
+    axis[2] = Point3f(0, axis_length, 0) + ptrCtr3d;
+    axis[3] = Point3f(0, 0, -axis_length) + ptrCtr3d;
+
     vector<Point2f> proj_axis;
+    //cout <<"R t. " << rvec.getMat() << tvec.getMat() << endl;
     projectPoints(axis, rvec, tvec, cameraMatrix, distCoeffs, proj_axis);
 
-    Moments pm = moments(pattern_corners); //pattern moments
-    Point2f center = Point2f(pm.m10/pm.m00 , pm.m01/pm.m00);
-    //cout << "pattern_points: " << pattern_corners[0] << " " << pattern_corners[1] << " " << pattern_corners[2] << endl;
-    //cout << "Moments: " << pm << endl;
-    cout << "Center: " << center << endl;
-    cout << "Axis: " << proj_axis[0] << " " << proj_axis[1] << " " << proj_axis[2] << endl;
     Mat img = image.getMat();
-
-    line(img, center, center + proj_axis[0], CV_RGB(255, 0, 0), axis_width);
-    line(img, center, center + proj_axis[1], CV_RGB(0, 255, 0), axis_width);
-    line(img, center, center + proj_axis[2], CV_RGB(0, 0, 255), axis_width);
+    line(img, proj_axis[0], proj_axis[1], CV_RGB(255, 0, 0), axis_width);
+    line(img, proj_axis[0], proj_axis[2], CV_RGB(0, 255, 0), axis_width);
+    line(img, proj_axis[0], proj_axis[3], CV_RGB(0, 0, 255), axis_width);
 
     imshow("inside", img);
     img.copyTo(image);
