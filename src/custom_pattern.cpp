@@ -421,13 +421,13 @@ void CustomPattern::drawOrientation(InputOutputArray image, InputArray tvec, Inp
                                     InputArray pattern_corners, InputArray cameraMatrix, InputArray distCoeffs,
                                     double axis_length, double axis_width)
 {
-    Point3f ptrCtr3d = Point3f((img_roi.cols)/2, (img_roi.rows)/2, 0);
+    Point3f ptrCtr3d = Point3f((img_roi.cols * pxSize)/2, (img_roi.rows * pxSize)/2, 0);
 
     vector<Point3f> axis(4);
     axis[0] = ptrCtr3d;
-    axis[1] = Point3f(axis_length, 0, 0) + ptrCtr3d;
-    axis[2] = Point3f(0, axis_length, 0) + ptrCtr3d;
-    axis[3] = Point3f(0, 0, -axis_length) + ptrCtr3d;
+    axis[1] = Point3f(axis_length * pxSize, 0, 0) + ptrCtr3d;
+    axis[2] = Point3f(0, axis_length * pxSize, 0) + ptrCtr3d;
+    axis[3] = Point3f(0, 0, -axis_length * pxSize) + ptrCtr3d;
 
     vector<Point2f> proj_axis;
     //cout <<"R t. " << rvec.getMat() << tvec.getMat() << endl;
