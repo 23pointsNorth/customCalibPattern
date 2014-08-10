@@ -6,7 +6,7 @@
 
 namespace cv{
 
-// grep to see if defines previously
+// grep to see if defined previously
 #define CHESSBOARD_PATTERN 	1
 #define CIRCLE_PATTERN 		2
 
@@ -14,11 +14,13 @@ namespace cv{
 class CustomPattern
 {
 public:
-	CustomPattern(InputArray image, const Rect roi,
+	//CustomPattern();
+	/*CustomPattern(InputArray image, const Rect roi,
 					const int flag, const Size patternSize, const float size,
 					OutputArray output = noArray());
 	CustomPattern(InputArray image, const Rect roi, const float pixel_size = 1.0,
-					OutputArray output = noArray());
+					OutputArray output = noArray());*/
+	bool create(InputArray image, const Size boardSize, OutputArray output = noArray());
 	// flag - CHESSBOARD/CIRCLE, size - physical square size
 	/*
 		1. Locate the chessboard/circle pattern -> find with subpixel accuracy
@@ -119,7 +121,7 @@ private:
 	std::vector<Point3f> points3d;
 	Mat descriptor;
 
-	bool init(Mat& image, const Rect roi, const float pixel_size, OutputArray output);
+	bool init(Mat& image, const float pixel_size, OutputArray output);
 	bool findPatternPass(const Mat& image, std::vector<Point2f>& matched_features, std::vector<Point3f>& pattern_points,
 						 Mat& H, std::vector<Point2f>& scene_corners, const double pratio, const double proj_error,
 						 const bool refine_position = false, const Mat& mask = Mat(), OutputArray output = noArray());

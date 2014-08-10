@@ -19,6 +19,8 @@ using namespace std;
 
 namespace cv{
 
+//CustomPattern::CustomPattern() {}
+/*
 CustomPattern::CustomPattern(InputArray image, const Rect roi,
 						     const int flag, const Size patternSize, const float size,
 						     OutputArray output)
@@ -46,7 +48,7 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi,
     // drawChessboardCorners(img_patterns, patternSize, Mat(corners), patternfound);
     // imshow("Chessboard", img_patterns);
 
-    if(patternfound || true /*for testing*/)
+    if(patternfound)
     {
         // Mat gray;
         // cvtColor(img, gray, COLOR_RGB2GRAY);
@@ -73,39 +75,61 @@ CustomPattern::CustomPattern(InputArray image, const Rect roi, const float pixel
     CV_Assert(!image.empty() && (roi.area() != 0) && (pixel_size > 0));
     Mat img = image.getMat();
     initialized = init(img, roi, pixel_size, output);
+}*/
+
+bool CustomPattern::create(InputArray image, const Size boardSize, OutputArray output)
+{
+    CV_Assert(!image.empty() && (boardSize.area() > 0));
+    Mat img = image.getMat();
+    float pixel_size = (boardSize.width > boardSize.height)?    // Choose the longer side for more accurate calculation
+                         float(img.cols) / boardSize.width:     // width is longer
+                         float(img.rows) / boardSize.height;    // height is longer
+    initialized = init(img, pixel_size, output);
+    return initialized;
 }
 
-bool CustomPattern::init(Mat& image, const Rect roi, const float pixel_size, OutputArray output)
+bool CustomPattern::init(Mat& image, const float pixel_size, OutputArray output)
 {
-    image(roi).copyTo(img_roi);
+    image.copyTo(img_roi);
+    //Setup object corners
     obj_corners = std::vector<Point2f>(4);
     obj_corners[0] = Point2f(0, 0); obj_corners[1] = Point2f(img_roi.cols, 0);
     obj_corners[2] = Point2f(img_roi.cols, img_roi.rows); obj_corners[3] = Point2f(0, img_roi.rows);
 
-    detector = FeatureDetector::create("ORB");
-    detector->set("nFeatures", 2000);
-    detector->set("scaleFactor", 1.15);
-    detector->set("nLevels", 30);
-    descriptorExtractor = DescriptorExtractor::create("ORB");
+    if (!detector)   // if no detector chosen, use default
+    {
+        detector = FeatureDetector::create("ORB");
+        detector->set("nFeatures", 2000);
+        detector->set("scaleFactor", 1.15);
+        detector->set("nLevels", 30);
+    }
 
     detector->detect(img_roi, keypoints);
+    cout << "Keypoints count: " << keypoints.size() << endl;
+    if (keypoints.size() == 0) return false;
     refineKeypointsPos(img_roi, keypoints);
 
-    cout << "Keypoints count: " << keypoints.size() << endl;
+    if (!descriptorExtractor)   // if no extractor chosen, use default
+        descriptorExtractor = DescriptorExtractor::create("ORB");
     descriptorExtractor->compute(img_roi, keypoints, descriptor);
 
-    descriptorMatcher = DescriptorMatcher::create("BruteForce-Hamming(2)");
-    cout << "BruteForce-Hamming(2) matcher." << endl;
+    if (!descriptorMatcher)
+        descriptorMatcher = DescriptorMatcher::create("BruteForce-Hamming(2)");
+        // cout << "BruteForce-Hamming(2) matcher." << endl;
 
-    Mat o;
-    drawKeypoints(img_roi, keypoints, o, CV_RGB(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 
     // Scale found points by pixelSize
     pxSize = pixel_size;
     scaleFoundPoints(pxSize, keypoints, points3d);
 
-    if (output.needed()) o.copyTo(output);
-    return (keypoints.size() != 0); // initialized if any keypoints are found
+    if (output.needed())
+    {
+        Mat out;
+        drawKeypoints(img_roi, keypoints, out, CV_RGB(255, 0, 0));//, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+        out.copyTo(output);
+    }
+
+    return (!keypoints.empty()); // initialized if any keypoints are found
 }
 
 CustomPattern::~CustomPattern() {}

@@ -115,7 +115,7 @@ void chessboard_accuracy(Mat& image)
 
 int main()
 {
-	CustomPattern* pattern;
+	CustomPattern* pattern = new CustomPattern();
 	VideoCapture video(0);
 	Rect roi;
 	Mat frame;
@@ -138,8 +138,12 @@ int main()
 
 	cout << "ROI selected! Creating pattern!" << endl;
 	Mat out;
-	pattern = new CustomPattern(frame, roi, CHESSBOARD_PATTERN, Size(9, 6), SQUARE_SIZE_M, out);
-	if (!pattern->isInitialized()) cout << "Pattern not initialized!" << endl;
+	//pattern = new CustomPattern(frame, roi, CHESSBOARD_PATTERN, Size(9, 6), SQUARE_SIZE_M, out);
+	if (!pattern->create(frame(roi), frame(roi).size(), out))
+	{
+		cout << "Pattern not created!" << endl;
+		return 0;
+	}
 	cout << "Pattern created." << endl;
 
 	imshow("Algorithm", out);
@@ -166,7 +170,11 @@ int main()
 		// cout << "Called." << endl;
 	}while(key != 'q');
 
-	if (matched_points.empty()) return 0;
+	if (matched_points.empty())
+	{
+		cout << "No matched points." << endl;
+		return 0;
+	}
 
 	Mat K, distCoeff;
 	vector<Mat> rvec, tvec;
@@ -174,8 +182,8 @@ int main()
 	cout << "K: " << K << endl << "distCoeff" << distCoeff << endl;
 
 	FileStorage fs("laptop_webcam_output.xml",  FileStorage::READ);
-	fs["distortion_coefficients"] >> distCoeff;
-	fs["camera_matrix"] >> K;
+	// fs["distortion_coefficients"] >> distCoeff;
+	// fs["camera_matrix"] >> K;
 	vector<float> perViewErrors;
 	cout << "Alternatively Computed rms" << computeReprojectionErrors(obj_points,
                                          matched_points,
