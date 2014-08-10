@@ -161,8 +161,10 @@ int main()
 
 		vector<Point2f> matched;
 		// cout << "Calling" << endl;
-		if (key == ' ' && pattern->findPattern(frame, matched, org) && matched.size() > 3)
+		Mat match_img;
+		if (key == ' ' && pattern->findPattern(frame, matched, org, 10, false, match_img) && matched.size() > 3)
 		{
+			imshow("Matched", match_img);
 			obj_points.push_back(org);
 			matched_points.push_back(matched);
 			cout << "Matched size: " << matched.size() << " Images collected: " << obj_points.size() << endl;

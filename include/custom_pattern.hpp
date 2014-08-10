@@ -63,11 +63,14 @@ public:
 		Get the pixel size of the pattern
 	*/
 
+	bool reinitialize();
 	bool setFeatureDetector(Ptr<FeatureDetector> featureDetector, bool reinitialize = false);
 	bool setDescriptorExtractor(Ptr<DescriptorExtractor> extractor, bool reinitialize = false);
 	bool setDescriptorMatcher(Ptr<DescriptorMatcher> matcher, bool reinitialize = false);
 
-	bool reinitialize();
+	Ptr<FeatureDetector> getFeatureDetector();
+	Ptr<DescriptorExtractor> getDescriptorExtractor();
+	Ptr<DescriptorMatcher> getDescriptorMatcher();
 
 	double calibrate(InputArrayOfArrays objectPoints, InputArrayOfArrays imagePoints,
 				Size imageSize, InputOutputArray cameraMatrix, InputOutputArray distCoeffs,
@@ -95,7 +98,6 @@ public:
     /*
 		Uses solvePnPRansac()
 	*/
-	bool findRtCalib();
 
 	void drawOrientation(InputOutputArray image, InputArray tvec, InputArray rvec, InputArray pattern_corners,
 						 InputArray cameraMatrix, InputArray distCoeffs, double axis_length = 3, double axis_width = 2);

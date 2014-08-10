@@ -143,6 +143,11 @@ bool CustomPattern::isInitialized()
     return initialized;
 }
 
+bool CustomPattern::reinitialize()
+{
+    return init(img_roi, pxSize);
+}
+
 bool CustomPattern::setFeatureDetector(Ptr<FeatureDetector> featureDetector, bool reinitialize)
 {
     this->detector = featureDetector;
@@ -170,10 +175,22 @@ bool CustomPattern::setDescriptorMatcher(Ptr<DescriptorMatcher> matcher, bool re
         return true;
 }
 
-bool CustomPattern::reinitialize()
+Ptr<FeatureDetector> CustomPattern::getFeatureDetector()
 {
-    return init(img_roi, pxSize);
+    return detector;
 }
+
+Ptr<DescriptorExtractor> CustomPattern::getDescriptorExtractor()
+{
+    return descriptorExtractor;
+}
+
+Ptr<DescriptorMatcher> CustomPattern::getDescriptorMatcher()
+{
+    return descriptorMatcher;
+}
+
+
 
 void CustomPattern::scaleFoundPoints(const double pixelSize,
             const vector<KeyPoint>& corners, vector<Point3f>& points3d)
