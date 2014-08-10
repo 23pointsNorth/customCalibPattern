@@ -182,8 +182,8 @@ int main()
 	cout << "K: " << K << endl << "distCoeff" << distCoeff << endl;
 
 	FileStorage fs("laptop_webcam_output.xml",  FileStorage::READ);
-	// fs["distortion_coefficients"] >> distCoeff;
-	// fs["camera_matrix"] >> K;
+	fs["distortion_coefficients"] >> distCoeff;
+	fs["camera_matrix"] >> K;
 	vector<float> perViewErrors;
 	cout << "Alternatively Computed rms" << computeReprojectionErrors(obj_points,
                                          matched_points,

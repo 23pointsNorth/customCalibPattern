@@ -84,8 +84,7 @@ bool CustomPattern::create(InputArray image, const Size boardSize, OutputArray o
     float pixel_size = (boardSize.width > boardSize.height)?    // Choose the longer side for more accurate calculation
                          float(img.cols) / boardSize.width:     // width is longer
                          float(img.rows) / boardSize.height;    // height is longer
-    initialized = init(img, pixel_size, output);
-    return initialized;
+    return init(img, pixel_size, output);;
 }
 
 bool CustomPattern::init(Mat& image, const float pixel_size, OutputArray output)
@@ -106,7 +105,11 @@ bool CustomPattern::init(Mat& image, const float pixel_size, OutputArray output)
 
     detector->detect(img_roi, keypoints);
     cout << "Keypoints count: " << keypoints.size() << endl;
-    if (keypoints.size() == 0) return false;
+    if (keypoints.empty())
+    {
+        initialized = false;
+        return initialized;
+    }
     refineKeypointsPos(img_roi, keypoints);
 
     if (!descriptorExtractor)   // if no extractor chosen, use default
@@ -115,7 +118,7 @@ bool CustomPattern::init(Mat& image, const float pixel_size, OutputArray output)
 
     if (!descriptorMatcher)
         descriptorMatcher = DescriptorMatcher::create("BruteForce-Hamming(2)");
-        // cout << "BruteForce-Hamming(2) matcher." << endl;
+        //  cout << "BruteForce-Hamming(2) matcher." << endl;
 
 
     // Scale found points by pixelSize
@@ -129,7 +132,8 @@ bool CustomPattern::init(Mat& image, const float pixel_size, OutputArray output)
         out.copyTo(output);
     }
 
-    return (!keypoints.empty()); // initialized if any keypoints are found
+    initialized = !keypoints.empty();
+    return initialized; // initialized if any keypoints are found
 }
 
 CustomPattern::~CustomPattern() {}
@@ -137,6 +141,38 @@ CustomPattern::~CustomPattern() {}
 bool CustomPattern::isInitialized()
 {
     return initialized;
+}
+
+bool CustomPattern::setFeatureDetector(Ptr<FeatureDetector> featureDetector, bool reinitialize)
+{
+    this->detector = featureDetector;
+    if (reinitialize)
+        return init(img_roi, pxSize);
+    else
+        return true;
+}
+
+bool CustomPattern::setDescriptorExtractor(Ptr<DescriptorExtractor> extractor, bool reinitialize)
+{
+    this->descriptorExtractor = extractor;
+    if (reinitialize)
+        return init(img_roi, pxSize);
+    else
+        return true;
+}
+
+bool CustomPattern::setDescriptorMatcher(Ptr<DescriptorMatcher> matcher, bool reinitialize)
+{
+    this->descriptorMatcher = matcher;
+    if (reinitialize)
+        return init(img_roi, pxSize);
+    else
+        return true;
+}
+
+bool CustomPattern::reinitialize()
+{
+    return init(img_roi, pxSize);
 }
 
 void CustomPattern::scaleFoundPoints(const double pixelSize,
@@ -250,7 +286,7 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
     vector<DMatch> good_matches;
     vector<Point2f> obj_points;
 
-    cout << "!!!!!!!!!!!!!!!!!!!!!!!!!Attempt:" << endl;
+    cout << "!!!!!!!!!!!!!!!!!!!!!!!!! Attempt:" << endl;
     for(int i = 0; i < f_descriptor.rows; ++i)
     {
         if(matches[i][0].distance < pratio * matches[i][1].distance)
@@ -352,10 +388,8 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features, 
     vector<Point3f> pattern_pts;
     Mat _H;
     vector<Point2f> scene_corners;
-    cout << "before pattern pass" << endl;
     if (!findPatternPass(img, m_ftrs, pattern_pts, _H, scene_corners, 0.6, proj_error, refine_position))
         return false; // pattern not found
-    cout << "after pattern pass" << endl;
 
     Mat mask = Mat::zeros(img.size(), CV_8UC1);
     vector<vector<Point> > obj(1);
@@ -370,8 +404,6 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features, 
     if (!findPatternPass(img, m_ftrs, pattern_pts, _H, scene_corners,
                          0.7, proj_error, refine_position, mask, output))
         return false; // pattern not found
-    imshow("OUTPUT!", output);
-    waitKey(10);
 
     Mat(m_ftrs).copyTo(matched_features);
     Mat(pattern_pts).copyTo(pattern_points);
@@ -454,7 +486,6 @@ void CustomPattern::drawOrientation(InputOutputArray image, InputArray tvec, Inp
     axis[3] = Point3f(0, 0, -axis_length * pxSize) + ptrCtr3d;
 
     vector<Point2f> proj_axis;
-    //cout <<"R t. " << rvec.getMat() << tvec.getMat() << endl;
     projectPoints(axis, rvec, tvec, cameraMatrix, distCoeffs, proj_axis);
 
     Mat img = image.getMat();
@@ -462,7 +493,6 @@ void CustomPattern::drawOrientation(InputOutputArray image, InputArray tvec, Inp
     line(img, proj_axis[0], proj_axis[2], CV_RGB(0, 255, 0), axis_width);
     line(img, proj_axis[0], proj_axis[3], CV_RGB(0, 0, 255), axis_width);
 
-    imshow("inside", img);
     img.copyTo(image);
 }
 

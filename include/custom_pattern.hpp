@@ -63,6 +63,12 @@ public:
 		Get the pixel size of the pattern
 	*/
 
+	bool setFeatureDetector(Ptr<FeatureDetector> featureDetector, bool reinitialize = false);
+	bool setDescriptorExtractor(Ptr<DescriptorExtractor> extractor, bool reinitialize = false);
+	bool setDescriptorMatcher(Ptr<DescriptorMatcher> matcher, bool reinitialize = false);
+
+	bool reinitialize();
+
 	double calibrate(InputArrayOfArrays objectPoints, InputArrayOfArrays imagePoints,
 				Size imageSize, InputOutputArray cameraMatrix, InputOutputArray distCoeffs,
 				OutputArrayOfArrays rvecs, OutputArrayOfArrays tvecs, int flags = 0,
@@ -121,7 +127,7 @@ private:
 	std::vector<Point3f> points3d;
 	Mat descriptor;
 
-	bool init(Mat& image, const float pixel_size, OutputArray output);
+	bool init(Mat& image, const float pixel_size, OutputArray output = noArray());
 	bool findPatternPass(const Mat& image, std::vector<Point2f>& matched_features, std::vector<Point3f>& pattern_points,
 						 Mat& H, std::vector<Point2f>& scene_corners, const double pratio, const double proj_error,
 						 const bool refine_position = false, const Mat& mask = Mat(), OutputArray output = noArray());
