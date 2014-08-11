@@ -6,34 +6,10 @@
 
 namespace cv{
 
-// grep to see if defined previously
-#define CHESSBOARD_PATTERN 	1
-#define CIRCLE_PATTERN 		2
-
-
 class CustomPattern
 {
 public:
-	//CustomPattern();
-	/*CustomPattern(InputArray image, const Rect roi,
-					const int flag, const Size patternSize, const float size,
-					OutputArray output = noArray());
-	CustomPattern(InputArray image, const Rect roi, const float pixel_size = 1.0,
-					OutputArray output = noArray());*/
 	bool create(InputArray image, const Size boardSize, OutputArray output = noArray());
-	// flag - CHESSBOARD/CIRCLE, size - physical square size
-	/*
-		1. Locate the chessboard/circle pattern -> find with subpixel accuracy
-			-> use 'size' to find actual pixel size at that distance
-		2. Takout ROI. Detect features. Extract featurs.
-			(if count < treshold, tweak params & rerun.)
-			//InputOutputArray-> draw points on canvas
-		3. Use 1 to give actual positions of the features found in 2.
-
-		OR
-
-		Use the user supplied pixel size and continue to step 2.
-	*/
 	~CustomPattern();
 
 	bool findPattern(InputArray image, OutputArray matched_features, OutputArray pattern_points,

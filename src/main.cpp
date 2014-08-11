@@ -138,7 +138,6 @@ int main()
 
 	cout << "ROI selected! Creating pattern!" << endl;
 	Mat out;
-	//pattern = new CustomPattern(frame, roi, CHESSBOARD_PATTERN, Size(9, 6), SQUARE_SIZE_M, out);
 	if (!pattern->create(frame(roi), frame(roi).size(), out))
 	{
 		cout << "Pattern not created!" << endl;
@@ -160,7 +159,6 @@ int main()
 		key = waitKey(10);
 
 		vector<Point2f> matched;
-		// cout << "Calling" << endl;
 		Mat match_img;
 		if (key == ' ' && pattern->findPattern(frame, matched, org, 10, false, match_img) && matched.size() > 3)
 		{
@@ -169,7 +167,6 @@ int main()
 			matched_points.push_back(matched);
 			cout << "Matched size: " << matched.size() << " Images collected: " << obj_points.size() << endl;
 		}
-		// cout << "Called." << endl;
 	}while(key != 'q');
 
 	if (matched_points.empty())
@@ -202,8 +199,8 @@ int main()
 	do
 	{
 		video >> frame;
-		//undistort(frame, undist, K, distCoeff);
-		//imshow("Undistorted", undist);
+		undistort(frame, undist, K, distCoeff);
+		imshow("Undistorted", undist);
 
 		vector<Point3f> org;
 		vector<Point2f> matched, pattern_corners;
@@ -217,8 +214,6 @@ int main()
 		pattern->drawOrientation(out, tvec, rvec, pattern_corners, K, distCoeff, 50, 3);
 
 		imshow("Output", out);
-
-
 
 		key = waitKey(10);
 	}while(key != 'q');

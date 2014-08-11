@@ -19,64 +19,6 @@ using namespace std;
 
 namespace cv{
 
-//CustomPattern::CustomPattern() {}
-/*
-CustomPattern::CustomPattern(InputArray image, const Rect roi,
-						     const int flag, const Size patternSize, const float size,
-						     OutputArray output)
-{
-    CV_Assert(!image.empty() && (roi.area() != 0) &&
-              (patternSize.area() != 0) && (size != 0));
-    CV_Assert((flag == CHESSBOARD_PATTERN)||(flag == CIRCLE_PATTERN));
-
-    Mat img = image.getMat();
-
-    vector<Point2f> corners;
-    bool patternfound;
-    // if(flag == CHESSBOARD_PATTERN)
-    // {
-    //     // CHESSBOARD_PATTERN
-    //     patternfound = findChessboardCorners(image, patternSize, corners,
-    //         CALIB_CB_ADAPTIVE_THRESH + CALIB_CB_NORMALIZE_IMAGE + CALIB_CB_FAST_CHECK);
-    // }
-    // else
-    // {
-    //     // CIRCLE_PATTERN
-    //     patternfound = findCirclesGrid(image, patternSize, corners);
-    // }
-    // Mat img_patterns(img);
-    // drawChessboardCorners(img_patterns, patternSize, Mat(corners), patternfound);
-    // imshow("Chessboard", img_patterns);
-
-    if(patternfound)
-    {
-        // Mat gray;
-        // cvtColor(img, gray, COLOR_RGB2GRAY);
-        // cornerSubPix(gray, corners, Size(11, 11), Size(-1, -1),
-        //             TermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 30, 0.1));
-
-        // // Average pixel size across the whole width.
-        // Point2d box_len = (corners[0] - corners[patternSize.width]) * (1.0 / patternSize.width);
-        // cout << "Scale: " << norm(box_len)/size << endl;
-        pxSize = 1; //norm(box_len)/size;
-
-        initialized = init(img, roi, pxSize, output);
-    }
-    else
-    {
-        //else no pattern found!
-        initialized = false; // otherwise, give a warning, not error.
-        CV_Error(Error::StsBadArg, "Could not find suggested pattern in the input image.");
-    }
-}
-
-CustomPattern::CustomPattern(InputArray image, const Rect roi, const float pixel_size, OutputArray output)
-{
-    CV_Assert(!image.empty() && (roi.area() != 0) && (pixel_size > 0));
-    Mat img = image.getMat();
-    initialized = init(img, roi, pixel_size, output);
-}*/
-
 bool CustomPattern::create(InputArray image, const Size boardSize, OutputArray output)
 {
     CV_Assert(!image.empty() && (boardSize.area() > 0));
@@ -118,8 +60,6 @@ bool CustomPattern::init(Mat& image, const float pixel_size, OutputArray output)
 
     if (!descriptorMatcher)
         descriptorMatcher = DescriptorMatcher::create("BruteForce-Hamming(2)");
-        //  cout << "BruteForce-Hamming(2) matcher." << endl;
-
 
     // Scale found points by pixelSize
     pxSize = pixel_size;
@@ -128,7 +68,7 @@ bool CustomPattern::init(Mat& image, const float pixel_size, OutputArray output)
     if (output.needed())
     {
         Mat out;
-        drawKeypoints(img_roi, keypoints, out, CV_RGB(255, 0, 0));//, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+        drawKeypoints(img_roi, keypoints, out, CV_RGB(255, 0, 0));
         out.copyTo(output);
     }
 
@@ -189,8 +129,6 @@ Ptr<DescriptorMatcher> CustomPattern::getDescriptorMatcher()
 {
     return descriptorMatcher;
 }
-
-
 
 void CustomPattern::scaleFoundPoints(const double pixelSize,
             const vector<KeyPoint>& corners, vector<Point3f>& points3d)
@@ -253,8 +191,6 @@ void CustomPattern::check_matches(vector<Point2f>& matched, const vector<Point2f
     vector<Point2f> proj;
     perspectiveTransform(pattern, proj, H);
 
-    //cout << "a=[";
-
     int deleted = 0;
     double error_sum = 0;
     double error_sum_filtered = 0;
@@ -271,16 +207,9 @@ void CustomPattern::check_matches(vector<Point2f>& matched, const vector<Point2f
         }
         else
         {
-            //cout << matched[i] - proj[i] << ";";
             error_sum_filtered += error;
         }
     }
-    //cout << "];" << endl;
-    cout << " Error sum: " << error_sum << endl;
-    cout << " Mean errros: " << error_sum / pattern.size() << endl;
-    cout << " Filered errros: " << error_sum_filtered << endl;
-    cout << " Filtered Mean errros: " << error_sum_filtered / good.size() << endl;
-
 }
 
 bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_features, vector<Point3f>& pattern_points,
@@ -303,7 +232,6 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
     vector<DMatch> good_matches;
     vector<Point2f> obj_points;
 
-    cout << "!!!!!!!!!!!!!!!!!!!!!!!!! Attempt:" << endl;
     for(int i = 0; i < f_descriptor.rows; ++i)
     {
         if(matches[i][0].distance < pratio * matches[i][1].distance)
@@ -314,13 +242,10 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
             matched_features.push_back(f_keypoints[dm.queryIdx].pt);
             pattern_points.push_back(points3d[dm.trainIdx]);
             obj_points.push_back(keypoints[dm.trainIdx].pt);
-            //cout << "Test: " << keypoints[dm.trainIdx].pt << endl;
-
         }
     }
-    cout << "After point ratio size: " << good_matches.size() << endl;
 
-    if (good_matches.size() < MIN_POINTS_FOR_H) return false; // 2*3 + 1 = RANSAC 50%+1
+    if (good_matches.size() < MIN_POINTS_FOR_H) return false;
 
     Mat h_mask; // or vector<uchar>
     H = findHomography(obj_points, matched_features, RANSAC, proj_error, h_mask);
@@ -340,12 +265,10 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
         }
     }
 
-    cout << "After findHomography: " << good_matches.size() << endl;
     if (good_matches.empty()) return false;
 
     uint numb_elem = good_matches.size();
     check_matches(matched_features, obj_points, good_matches, pattern_points, H);
-    cout << "After proj_error: " << good_matches.size() << endl;
     if (good_matches.empty() || numb_elem < good_matches.size()) return false;
 
     // Get the corners from the image
@@ -355,16 +278,12 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
     // Check correctnes of H
     // Is it a convex hull?
     bool cConvex = isContourConvex(scene_corners);
-    // cout << "IsContourConvex -- " << cConvex << endl;
-    // cout << "Points are: " << scene_corners[0] << scene_corners[1] << scene_corners[2] << scene_corners[3] << endl;
     if (!cConvex) return false;
 
     // Is the hull too large or small?
     double scene_area = contourArea(scene_corners);
-    // cout << "Contour Area -- " << scene_area << endl;
     if (scene_area < MIN_CONTOUR_AREA_PX) return false;
     double ratio = scene_area/img_roi.size().area();
-    cout << "Area ratio -- " << ratio << endl;
     if ((ratio < MIN_CONTOUR_AREA_RATIO) ||
         (ratio > MAX_CONTOUR_AREA_RATIO)) return false;
 
@@ -513,9 +432,6 @@ void CustomPattern::drawOrientation(InputOutputArray image, InputArray tvec, Inp
     img.copyTo(image);
 }
 
-
 } // namespace cv
-
-
 
 #endif
