@@ -75,8 +75,8 @@ public:
 		Uses solvePnPRansac()
 	*/
 
-	void drawOrientation(InputOutputArray image, InputArray tvec, InputArray rvec, InputArray pattern_corners,
-						 InputArray cameraMatrix, InputArray distCoeffs, double axis_length = 3, double axis_width = 2);
+	void drawOrientation(InputOutputArray image, InputArray tvec, InputArray rvec, InputArray cameraMatrix,
+						 InputArray distCoeffs, double axis_length = 3, double axis_width = 2);
 	/*
 		pattern_corners -> projected over the image position of the edges of the pattern.
 	*/

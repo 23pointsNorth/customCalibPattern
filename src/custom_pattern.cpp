@@ -417,7 +417,7 @@ bool CustomPattern::findRtRANSAC(InputArray image, InputArray cameraMatrix, Inpu
 }
 
 void CustomPattern::drawOrientation(InputOutputArray image, InputArray tvec, InputArray rvec,
-                                    InputArray pattern_corners, InputArray cameraMatrix, InputArray distCoeffs,
+                                    InputArray cameraMatrix, InputArray distCoeffs,
                                     double axis_length, double axis_width)
 {
     Point3f ptrCtr3d = Point3f((img_roi.cols * pxSize)/2, (img_roi.rows * pxSize)/2, 0);
