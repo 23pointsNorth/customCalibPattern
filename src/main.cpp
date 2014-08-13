@@ -1,5 +1,6 @@
 #include "custom_pattern.hpp"
 #include <opencv2/calib3d.hpp>
+#include <opencv2/highgui.hpp>
 #include <iostream>
 
 using namespace cv;
@@ -128,6 +129,7 @@ int main()
 		video >> frame;
 		Mat canvas(frame.clone());
 		rectangle(canvas, roi, CV_RGB(255, 0, 0));
+
 		imshow("Select Pattern", canvas);
 		key = waitKey(10);
 
@@ -136,15 +138,17 @@ int main()
 	}while(key != 't');
 	destroyWindow("Select Pattern");
 
+	frame = imread("DSC_0287_a.png");
+
 	cout << "ROI selected! Creating pattern!" << endl;
 	Mat out;
-	if (!pattern->create(frame(roi), frame(roi).size(), out))
+	if (!pattern->create(frame, frame.size(), out))
 	{
 		cout << "Pattern not created!" << endl;
 		return 0;
 	}
 	cout << "Pattern created." << endl;
-
+	cout << pattern->getDescriptorMatcher()->name();
 	imshow("Algorithm", out);
 
 	vector<vector<Point3f> > obj_points;
@@ -211,9 +215,9 @@ int main()
 		Mat rvec, tvec;
 		pattern->findRtRANSAC(org, matched, K, distCoeff, rvec, tvec);
 
-		pattern->drawOrientation(out, tvec, rvec, pattern_corners, K, distCoeff, 50, 3);
-
-		imshow("Output", out);
+		//pattern->drawOrientation(out, tvec, rvec, pattern_corners, K, distCoeff, 50, 3);
+		pattern->drawOrientation(frame, tvec, rvec, pattern_corners, K, distCoeff, 50, 3);
+		imshow("Output", frame);
 
 		key = waitKey(10);
 	}while(key != 'q');

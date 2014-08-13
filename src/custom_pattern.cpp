@@ -19,10 +19,16 @@ using namespace std;
 
 namespace cv{
 
-bool CustomPattern::create(InputArray image, const Size boardSize, OutputArray output)
+CustomPattern::CustomPattern()
 {
-    CV_Assert(!image.empty() && (boardSize.area() > 0));
-    Mat img = image.getMat();
+    initialized = false;
+}
+
+bool CustomPattern::create(InputArray pattern, const Size2f boardSize, OutputArray output)
+{
+    CV_Assert(!pattern.empty() && (boardSize.area() > 0));
+
+    Mat img = pattern.getMat();
     float pixel_size = (boardSize.width > boardSize.height)?    // Choose the longer side for more accurate calculation
                          float(img.cols) / boardSize.width:     // width is longer
                          float(img.rows) / boardSize.height;    // height is longer
@@ -83,36 +89,37 @@ bool CustomPattern::isInitialized()
     return initialized;
 }
 
-bool CustomPattern::reinitialize()
+bool CustomPattern::setFeatureDetector(Ptr<FeatureDetector> featureDetector)
 {
-    return init(img_roi, pxSize);
+    if (!initialized)
+    {
+        this->detector = featureDetector;
+        return true;
+    }
+    else
+        return false;
 }
 
-bool CustomPattern::setFeatureDetector(Ptr<FeatureDetector> featureDetector, bool reinitialize)
+bool CustomPattern::setDescriptorExtractor(Ptr<DescriptorExtractor> extractor)
 {
-    this->detector = featureDetector;
-    if (reinitialize)
-        return init(img_roi, pxSize);
-    else
+    if (!initialized)
+    {
+        this->descriptorExtractor = extractor;
         return true;
+    }
+    else
+        return false;
 }
 
-bool CustomPattern::setDescriptorExtractor(Ptr<DescriptorExtractor> extractor, bool reinitialize)
+bool CustomPattern::setDescriptorMatcher(Ptr<DescriptorMatcher> matcher)
 {
-    this->descriptorExtractor = extractor;
-    if (reinitialize)
-        return init(img_roi, pxSize);
-    else
+    if (!initialized)
+    {
+        this->descriptorMatcher = matcher;
         return true;
-}
-
-bool CustomPattern::setDescriptorMatcher(Ptr<DescriptorMatcher> matcher, bool reinitialize)
-{
-    this->descriptorMatcher = matcher;
-    if (reinitialize)
-        return init(img_roi, pxSize);
+    }
     else
-        return true;
+        return false;
 }
 
 Ptr<FeatureDetector> CustomPattern::getFeatureDetector()

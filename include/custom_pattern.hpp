@@ -6,11 +6,12 @@
 
 namespace cv{
 
-class CustomPattern
+class CustomPattern : public Algorithm
 {
 public:
-	bool create(InputArray image, const Size boardSize, OutputArray output = noArray());
+	CustomPattern();
 	~CustomPattern();
+	bool create(InputArray pattern, const Size2f boardSize, OutputArray output = noArray());
 
 	bool findPattern(InputArray image, OutputArray matched_features, OutputArray pattern_points,
 					 const double proj_error = 8.0, const bool refine_position = false, OutputArray out = noArray(),
@@ -39,10 +40,9 @@ public:
 		Get the pixel size of the pattern
 	*/
 
-	bool reinitialize();
-	bool setFeatureDetector(Ptr<FeatureDetector> featureDetector, bool reinitialize = false);
-	bool setDescriptorExtractor(Ptr<DescriptorExtractor> extractor, bool reinitialize = false);
-	bool setDescriptorMatcher(Ptr<DescriptorMatcher> matcher, bool reinitialize = false);
+	bool setFeatureDetector(Ptr<FeatureDetector> featureDetector);
+	bool setDescriptorExtractor(Ptr<DescriptorExtractor> extractor);
+	bool setDescriptorMatcher(Ptr<DescriptorMatcher> matcher);
 
 	Ptr<FeatureDetector> getFeatureDetector();
 	Ptr<DescriptorExtractor> getDescriptorExtractor();
