@@ -321,7 +321,7 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
 }
 
 bool CustomPattern::findPattern(InputArray image, OutputArray matched_features, OutputArray pattern_points,
-                                const double proj_error, const bool refine_position, OutputArray out,
+                                const double ratio, const double proj_error, const bool refine_position, OutputArray out,
                                 OutputArray H, OutputArray pattern_corners)
 {
     CV_Assert(!image.empty() && proj_error > 0);
@@ -345,7 +345,7 @@ bool CustomPattern::findPattern(InputArray image, OutputArray matched_features, 
     // Second pass
     Mat output;
     if (!findPatternPass(img, m_ftrs, pattern_pts, _H, scene_corners,
-                         0.7, proj_error, refine_position, mask, output))
+                         ratio, proj_error, refine_position, mask, output))
         return false; // pattern not found
 
     Mat(m_ftrs).copyTo(matched_features);

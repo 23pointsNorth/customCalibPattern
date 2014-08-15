@@ -138,17 +138,16 @@ int main()
 	}while(key != 't');
 	destroyWindow("Select Pattern");
 
-	frame = imread("DSC_0287_a.png");
+	//frame = imread("DSC_0287_a.png");
 
 	cout << "ROI selected! Creating pattern!" << endl;
 	Mat out;
-	if (!pattern->create(frame, frame.size(), out))
+	if (!pattern->create(frame(roi), frame(roi).size(), out))
 	{
 		cout << "Pattern not created!" << endl;
 		return 0;
 	}
-	cout << "Pattern created." << endl;
-	cout << pattern->getDescriptorMatcher()->name();
+	cout << "Pattern created." << pattern->getDescriptorMatcher()->name() << endl;
 	imshow("Algorithm", out);
 
 	vector<vector<Point3f> > obj_points;
@@ -164,9 +163,16 @@ int main()
 
 		vector<Point2f> matched;
 		Mat match_img;
-		if (key == ' ' && pattern->findPattern(frame, matched, org, 10, false, match_img) && matched.size() > 3)
-		{
+
+		if (pattern->findPattern(frame, matched, org, 0.7, 10, false, match_img))
 			imshow("Matched", match_img);
+		else
+			continue;
+		if (key == ' ' && matched.size() > 3)
+		{
+			Mat neg;
+			bitwise_not(match_img, neg);
+			imshow("Matched", neg);
 			obj_points.push_back(org);
 			matched_points.push_back(matched);
 			cout << "Matched size: " << matched.size() << " Images collected: " << obj_points.size() << endl;
@@ -207,16 +213,16 @@ int main()
 		imshow("Undistorted", undist);
 
 		vector<Point3f> org;
-		vector<Point2f> matched, pattern_corners;
+		vector<Point2f> matched;
 		Mat out;
-		pattern->findPattern(frame, matched, org, 8.0, false, out, noArray(), pattern_corners);
+		pattern->findPattern(frame, matched, org, 0.7, 8.0, false, out);
 		if (matched.size() < 3) continue;
 
 		Mat rvec, tvec;
 		pattern->findRtRANSAC(org, matched, K, distCoeff, rvec, tvec);
 
 		//pattern->drawOrientation(out, tvec, rvec, pattern_corners, K, distCoeff, 50, 3);
-		pattern->drawOrientation(frame, tvec, rvec, pattern_corners, K, distCoeff, 50, 3);
+		pattern->drawOrientation(frame, tvec, rvec, K, distCoeff, 50, 3);
 		imshow("Output", frame);
 
 		key = waitKey(10);

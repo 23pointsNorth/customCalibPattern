@@ -13,7 +13,7 @@ public:
 	~CustomPattern();
 	bool create(InputArray pattern, const Size2f boardSize, OutputArray output = noArray());
 
-	bool findPattern(InputArray image, OutputArray matched_features, OutputArray pattern_points,
+	bool findPattern(InputArray image, OutputArray matched_features, OutputArray pattern_points, const double ratio = 0.7,
 					 const double proj_error = 8.0, const bool refine_position = false, OutputArray out = noArray(),
 					 OutputArray H = noArray(), OutputArray pattern_corners = noArray());
 	/*

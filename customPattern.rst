@@ -49,13 +49,15 @@ CustomPattern::findPattern
 --------------------------
 Finds the pattern in the input image
 
-.. ocv:function:: bool findPattern(InputArray image, OutputArray matched_features, OutputArray pattern_points, const double proj_error = 8.0, const bool refine_position = false, OutputArray out = noArray(), OutputArray H = noArray(), OutputArray pattern_corners = noArray());
+.. ocv:function:: bool findPattern(InputArray image, OutputArray matched_features, OutputArray pattern_points, const double ratio = 0.7, const double proj_error = 8.0, const bool refine_position = false, OutputArray out = noArray(), OutputArray H = noArray(), OutputArray pattern_corners = noArray());
 
     :param image: The input image where the pattern is searched for.
 
     :param matched_features: A ``vector<Point2f>`` of the projections of calibration pattern points, matched in the image. The points correspond to the ``pattern_points``.``matched_features`` and ``pattern_points`` have the same size.
 
     :param pattern_points: A ``vector<Point3f>`` of calibration pattern points in the calibration pattern coordinate space.
+
+    :param ratio: A ratio used to threshold matches based on D. Lowe's point ratio test.
 
     :param proj_error: The maximum projection error that is allowed when the found points are back projected. A lower projection error will be beneficial for eliminating mismatches. Higher values are recommended when the camera lens has greater distortions.
 
@@ -124,7 +126,6 @@ CustomPattern::setDescriptorMatcher
     :return Is it successfully set? Will fail if the object is already initialized by :ocv:func:`create`.
 
 
-
 CustomPattern::getFeatureDetector
 ---------------------------------
 .. ocv:function:: Ptr<FeatureDetector> getFeatureDetector()
@@ -146,7 +147,6 @@ CustomPattern::getDescriptorMatcher
     :return The used DescriptorMatcher.
 
 
-
 CustomPattern::calibrate
 ------------------------
 Calibrates the camera.
@@ -154,6 +154,7 @@ Calibrates the camera.
 .. ocv:function:: double calibrate(InputArrayOfArrays objectPoints, InputArrayOfArrays imagePoints, Size imageSize, InputOutputArray cameraMatrix, InputOutputArray distCoeffs, OutputArrayOfArrays rvecs, OutputArrayOfArrays tvecs, int flags = 0, TermCriteria criteria = TermCriteria(TermCriteria::COUNT + TermCriteria::EPS, 30, DBL_EPSILON))
 
     See :ocv:func:`calibrateCamera` for parameter information.
+
 
 CustomPattern::findRt
 ---------------------
