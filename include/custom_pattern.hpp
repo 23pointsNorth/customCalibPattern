@@ -10,7 +10,8 @@ class CustomPattern : public Algorithm
 {
 public:
 	CustomPattern();
-	~CustomPattern();
+	virtual ~CustomPattern();
+
 	bool create(InputArray pattern, const Size2f boardSize, OutputArray output = noArray());
 
 	bool findPattern(InputArray image, OutputArray matched_features, OutputArray pattern_points, const double ratio = 0.7,
