@@ -39,8 +39,8 @@
  //
  //M*/
 
-#ifndef CCALIB_CPP
-#define CCALIB_CPP
+#ifndef __OPENCV_CCALIB_CPP__
+#define __OPENCV_CCALIB_CPP__
 
 #include "custom_pattern.hpp"
 
@@ -78,7 +78,7 @@ bool CustomPattern::create(InputArray pattern, const Size2f boardSize, OutputArr
     float pixel_size = (boardSize.width > boardSize.height)?    // Choose the longer side for more accurate calculation
                          float(img.cols) / boardSize.width:     // width is longer
                          float(img.rows) / boardSize.height;    // height is longer
-    return init(img, pixel_size, output);;
+    return init(img, pixel_size, output);
 }
 
 bool CustomPattern::init(Mat& image, const float pixel_size, OutputArray output)
@@ -299,7 +299,7 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
 
     if (good_matches.size() < MIN_POINTS_FOR_H) return false;
 
-    Mat h_mask; // or vector<uchar>
+    Mat h_mask;
     H = findHomography(obj_points, matched_features, RANSAC, proj_error, h_mask);
     if (H.empty())
     {
