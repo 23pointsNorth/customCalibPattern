@@ -2,7 +2,12 @@
 #define CUSTOM_PATTERN
 
 #include "custom_pattern.hpp"
-#include <opencv2/opencv.hpp>
+
+#include <opencv2/core/core.hpp>
+#include <opencv2/core/types_c.h>
+#include <opencv2/core/core_c.h>
+#include <opencv2/calib3d/calib3d.hpp>
+#include <opencv2/features2d/features2d.hpp>
 
 #include <vector>
 #include <cstring>
@@ -52,7 +57,6 @@ bool CustomPattern::init(Mat& image, const float pixel_size, OutputArray output)
     }
 
     detector->detect(img_roi, keypoints);
-    cout << "Keypoints count: " << keypoints.size() << endl;
     if (keypoints.empty())
     {
         initialized = false;
@@ -258,7 +262,7 @@ bool CustomPattern::findPatternPass(const Mat& image, vector<Point2f>& matched_f
     H = findHomography(obj_points, matched_features, RANSAC, proj_error, h_mask);
     if (H.empty())
     {
-        cout << "findHomography() returned empty Mat." << endl;
+        // cout << "findHomography() returned empty Mat." << endl;
         return false;
     }
 
