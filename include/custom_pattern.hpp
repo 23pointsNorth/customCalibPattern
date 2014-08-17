@@ -51,7 +51,7 @@
 
 namespace cv{
 
-class CustomPattern : public Algorithm
+class CV_EXPORTS CustomPattern : public Algorithm
 {
 public:
 	CustomPattern();
@@ -62,19 +62,7 @@ public:
 	bool findPattern(InputArray image, OutputArray matched_features, OutputArray pattern_points, const double ratio = 0.7,
 					 const double proj_error = 8.0, const bool refine_position = false, OutputArray out = noArray(),
 					 OutputArray H = noArray(), OutputArray pattern_corners = noArray());
-	/*
-		accepting many images at the same time? FD::detect() does.
-		matched_features -> vector<Point> is the feaures matched to
-							the original set of points
-		pattern_points -> the points from the original matched pattern
-							(needed as not all points may be matched)
-		refine_position -> refine point position thorough subPixelPos.
-		H -> (Mat) The homography matrix.
-		scene_corners -> std::vector<Point2f> vector of the 4 points describing the projected pattern corners
-							(inside which the battern is bounded to)
-		The two vectors can be used to calibrate the camera.
-		@return: Found successfully.
-	*/
+
 	bool isInitialized();
 
 	void getPatternPoints(OutputArray original_points);
@@ -127,15 +115,7 @@ public:
 		pattern_corners -> projected over the image position of the edges of the pattern.
 	*/
 
-	/*
-		Other:
-		1. operator >> & <<; Be compatable with the save/load to XML/YAML.
-		2. drawMatches(IOArray image);
-		3. UpdateCameraCalibration(image, K, distCoeffs, *calib_params*);
-	*/
-
 private:
-	//operator=
 
 	Mat img_roi;
 	std::vector<Point2f> obj_corners;
@@ -164,6 +144,6 @@ private:
 	void refineKeypointsPos(const Mat& img, std::vector<KeyPoint>& kp);
 };
 
-}
+} // cv
 
 #endif
